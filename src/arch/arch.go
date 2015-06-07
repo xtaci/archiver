@@ -1,4 +1,4 @@
-package ipc
+package main
 
 import (
 	"fmt"
@@ -25,10 +25,12 @@ const (
 
 type Archiver struct {
 	pending chan []byte
+	stop    chan bool
 }
 
 func (arch *Archiver) init() {
 	arch.pending = make(chan []byte)
+	arch.stop = make(chan bool)
 	cfg := nsq.NewConfig()
 	consumer, err := nsq.NewConsumer(TOPIC, CHANNEL, cfg)
 	if err != nil {
