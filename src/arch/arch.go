@@ -63,11 +63,7 @@ func (arch *Archiver) init() {
 
 func (arch *Archiver) archive_task() {
 	timer := time.After(REDO_ROTATE_INTERVAL)
-	db, err := bolt.Open(arch.new_redofile(), 0600, nil)
-	if err != nil {
-		log.Critical(err)
-		os.Exit(-1)
-	}
+	db := arch.new_redolog()
 	for {
 		select {
 		case msg := <-arch.pending:
@@ -86,16 +82,26 @@ func (arch *Archiver) archive_task() {
 		case <-timer:
 			db.Close()
 			// rotate redolog
-			db, err = bolt.Open(arch.new_redofile(), 0600, nil)
-			if err != nil {
-				log.Critical(err)
-				os.Exit(-1)
-			}
+			db = arch.new_redolog()
 			timer = time.After(REDO_ROTATE_INTERVAL)
 		}
 	}
 }
 
-func (arch *Archiver) new_redofile() string {
-	return DATA_DIRECTORY + "/" + time.Now().Format(REDO_TIME_FORMAT)
+func (arch *Archiver) new_redolog() *bolt.DB {
+	file := DATA_DIRECTORY + "/" + time.Now().Format(REDO_TIME_FORMAT)
+	db, err := bolt.Open(file, 0600, nil)
+	if err != nil {
+		log.Critical(err)
+		os.Exit(-1)
+	}
+	// create bulket
+	db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucket([]byte(BOLTDB_BUCKET))
+		if err != nil {
+			log.Criticalf("create bucket: %s", err)
+		}
+		return nil
+	})
+	return db
 }
