@@ -20,7 +20,7 @@ const (
 	REDO_TIME_FORMAT     = "REDO-2006-01-02T15:04:05.RDO"
 	REDO_ROTATE_INTERVAL = 24 * time.Hour
 	BOLTDB_BUCKET        = "REDOLOG"
-	DATA_DIRECTORY       = "/data"
+	DATA_DIRECTORY       = "/data/"
 )
 
 type Archiver struct {
@@ -89,7 +89,7 @@ func (arch *Archiver) archive_task() {
 }
 
 func (arch *Archiver) new_redolog() *bolt.DB {
-	file := DATA_DIRECTORY + "/" + time.Now().Format(REDO_TIME_FORMAT)
+	file := DATA_DIRECTORY + time.Now().Format(REDO_TIME_FORMAT)
 	db, err := bolt.Open(file, 0600, nil)
 	if err != nil {
 		log.Critical(err)
@@ -100,6 +100,7 @@ func (arch *Archiver) new_redolog() *bolt.DB {
 		_, err := tx.CreateBucket([]byte(BOLTDB_BUCKET))
 		if err != nil {
 			log.Criticalf("create bucket: %s", err)
+			return err
 		}
 		return nil
 	})
