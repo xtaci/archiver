@@ -40,6 +40,7 @@ func (arch *Archiver) init() {
 
 	// message process
 	consumer.AddHandler(nsq.HandlerFunc(func(msg *nsq.Message) error {
+		pending <- msg.Body
 		return nil
 	}))
 
