@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	DEFAULT_NSQLOOKUPD   = "127.0.0.1:4160"
+	DEFAULT_NSQLOOKUPD   = "http://127.0.0.1:4161"
 	ENV_NSQLOOKUPD       = "NSQLOOKUPD_HOST"
 	TOPIC                = "REDOLOG"
 	CHANNEL              = "ARCH"
@@ -40,7 +40,7 @@ func (arch *Archiver) init() {
 
 	// message process
 	consumer.AddHandler(nsq.HandlerFunc(func(msg *nsq.Message) error {
-		pending <- msg.Body
+		arch.pending <- msg.Body
 		return nil
 	}))
 
@@ -85,6 +85,7 @@ func (arch *Archiver) archive_task() {
 			})
 		case <-timer:
 			db.Close()
+			// rotate redolog
 			db, err = bolt.Open(arch.new_redofile(), 0600, nil)
 			if err != nil {
 				log.Critical(err)
