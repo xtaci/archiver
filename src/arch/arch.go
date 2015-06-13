@@ -7,7 +7,9 @@ import (
 	"github.com/boltdb/bolt"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -62,6 +64,8 @@ func (arch *Archiver) init() {
 }
 
 func (arch *Archiver) archive_task() {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGTERM)
 	timer := time.After(REDO_ROTATE_INTERVAL)
 	db := arch.new_redolog()
 	for {
@@ -84,6 +88,10 @@ func (arch *Archiver) archive_task() {
 			// rotate redolog
 			db = arch.new_redolog()
 			timer = time.After(REDO_ROTATE_INTERVAL)
+		case <-sig:
+			db.Close()
+			log.Info("SIGTERM")
+			os.Exit(0)
 		}
 	}
 }
