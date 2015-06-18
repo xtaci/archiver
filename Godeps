@@ -1,5 +1,5 @@
 github.com/bitly/go-nsq 8c8eba2ac6823ce1ba17b3a353eaf5811a21a7f5
 gopkg.in/vmihailenco/msgpack.v2 v2.3
-github.com/GameGophers/nsq-logger dfcc05ce638eee75cacf3da0216c89a5bcc9f6a3
+github.com/GameGophers/libs HEAD
 github.com/boltdb/bolt 5eb31d5821750fbc84284d610c0ce85261662adb
 github.com/GameGophers/statsd-pprof 35b07b965c1a377fdf88e59acafab81fc0e7e3b4

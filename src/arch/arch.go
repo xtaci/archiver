@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	log "github.com/GameGophers/nsq-logger"
+	log "github.com/GameGophers/libs/nsq-logger"
 	nsq "github.com/bitly/go-nsq"
 	"github.com/boltdb/bolt"
 	"gopkg.in/vmihailenco/msgpack.v2"
