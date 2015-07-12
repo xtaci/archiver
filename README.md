@@ -11,5 +11,5 @@
 参考Dockerfile
 
 # 环境变量
-> NSQD_HOST: eg : http://172.17.42.1:4151
-> NSQLOOKUPD_HOST: eg: http://127.0.0.1:4161
+> NSQD_HOST: eg : http://172.17.42.1:4151         
+> NSQLOOKUPD_HOST: eg: http://127.0.0.1:4161         
