@@ -1,7 +1,7 @@
 package main
 
 import (
-	redo "github.com/GameGophers/nsq-redo"
+	redo "github.com/gonet2/nsq-redo"
 	"testing"
 	"time"
 )
