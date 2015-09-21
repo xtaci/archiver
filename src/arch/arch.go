@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	DEFAULT_NSQLOOKUPD   = "http://127.0.0.1:4161"
+	DEFAULT_NSQLOOKUPD   = "http://172.17.42.1:4161"
 	ENV_NSQLOOKUPD       = "NSQLOOKUPD_HOST"
 	TOPIC                = "REDOLOG"
 	CHANNEL              = "ARCH"
