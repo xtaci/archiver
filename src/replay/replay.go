@@ -101,7 +101,7 @@ func (t *ToolBox) init(dir string) {
 	}
 
 	for _, file := range files {
-		db, err := bolt.Open(file, 0600, nil)
+		db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second})
 		if err != nil {
 			log.Println(err)
 			continue
