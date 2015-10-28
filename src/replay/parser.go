@@ -60,22 +60,24 @@ Commands:
 	db(1)				-- choose a database file (all operations below are under this db)
 		users()				-- print all users of this database
 		info()				-- print summary of this database
-	bind(1234)			-- bind operations on userid (all operations below binded to a user)
-		count()				-- print number of records
-		keys()				-- print all keys
-		show(1, 100)			-- show all elements from 1, count 100
-		replay(1,100)			-- replay all changes from 1, count 100
+	bind(1234)			-- bind operations on userid (all operations below are binded to a user)
+		count()				-- print number of records of the user
+		keys()				-- print all keys of the user
+		show(1, 100)			-- show all elements from 1, count 100 of the user
+		replay(1,100)			-- replay all changes from 1, count 100 of the user
 `
 
 type ToolBox struct {
 	dbs        []*bolt.DB    // all opened boltdb
-	selected   int           // current selected db
+	dbid       int           // current selected db
+	userid     int           // current selected userid
 	cmd_reader *bytes.Buffer // cmds
 	mgo_url    string
 }
 
 func (t *ToolBox) init(dir string) {
-	t.selected = -1
+	t.dbid = -1
+	t.userid = -1
 	files, err := filepath.Glob(dir + "/*.RDO")
 	if err != nil {
 		log.Println(err)
@@ -226,7 +228,7 @@ func (t *ToolBox) cmd_db() {
 	tk := t.match(TK_NUM)
 	if tk.num < len(t.dbs) {
 		t.match(TK_RPAREN)
-		t.selected = tk.num
+		t.dbid = tk.num
 	} else {
 		fmt.Println("no such index")
 	}

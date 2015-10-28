@@ -23,8 +23,8 @@ func main() {
 }
 
 func prompt(tb *ToolBox) {
-	if tb.selected != -1 {
-		fmt.Printf("%v> ", tb.dbs[tb.selected])
+	if tb.dbid != -1 {
+		fmt.Printf("%v> ", tb.dbs[tb.dbid])
 	} else {
 		fmt.Print("> ")
 	}
