@@ -88,6 +88,7 @@ func (t *ToolBox) cmd_duration() {
 
 	t.duration_a = tm_a
 	t.duration_b = tm_b
+	t.duration_set = true
 }
 
 func (t *ToolBox) cmd_count() {

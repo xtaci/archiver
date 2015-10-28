@@ -219,6 +219,8 @@ func (t *ToolBox) parse_exec(cmd string) {
 	case TK_INFO:
 		t.cmd_info()
 
+	case TK_DURATION:
+		t.cmd_duration()
 	case TK_BIND:
 		t.cmd_bind()
 	case TK_COUNT:
@@ -228,6 +230,6 @@ func (t *ToolBox) parse_exec(cmd string) {
 	case TK_REPLAY:
 		t.cmd_replay()
 	default:
-		fmt.Println("syntax err:", cmd)
+		fmt.Println("unkown command:", cmd)
 	}
 }

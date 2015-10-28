@@ -25,13 +25,13 @@ func main() {
 func prompt(tb *ToolBox) {
 	var ps string
 	if tb.fileid != -1 {
-		ps += fmt.Sprintf("file(%v)", tb.dbs[tb.fileid])
+		ps += fmt.Sprintf("file(%v)", tb.fileid)
 	}
 	if tb.userid != -1 {
 		ps += fmt.Sprintf("userid(%v)", tb.userid)
 	}
 	if tb.duration_set {
-		ps += fmt.Sprintf("(%v - %v)", tb.duration_a, tb.duration_b)
+		ps += fmt.Sprintf("(%v -- %v)", tb.duration_a, tb.duration_b)
 	}
 	ps += "> "
 	fmt.Print(ps)
