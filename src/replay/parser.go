@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"unicode"
@@ -41,13 +40,14 @@ type token struct {
 	num     int
 }
 
+// set ts=8
 var help = `REDO Replay Tool
 
 Commands:
 	ls 				-- list all database files
 	mgo mongodb://xxx/mydb		-- define mongodb url for replay
 
-	select xxx.RDO				-- choose a file
+	select 1				-- choose a file
 		show(1, 100)			-- show all elements from 1, count 100
 		show(1234, 1,100)		-- show elements for a user(1234) from 1, count 100
 		replay(1234, 50, 100)		-- replay to user(1234) from 50 count 50
@@ -55,13 +55,13 @@ Commands:
 `
 
 type ToolBox struct {
-	dbs        map[string]*bolt.DB // all opened boltdb
-	selected   string              // current selected db
-	cmd_reader *bytes.Buffer       // cmds
+	dbs        []*bolt.DB    // all opened boltdb
+	selected   int           // current selected db
+	cmd_reader *bytes.Buffer // cmds
+	mgo_url    string
 }
 
 func (t *ToolBox) init(dir string) {
-	t.dbs = make(map[string]*bolt.DB)
 	files, err := filepath.Glob(dir + "/*.RDO")
 	if err != nil {
 		log.Println(err)
@@ -74,7 +74,7 @@ func (t *ToolBox) init(dir string) {
 			log.Println(err)
 			continue
 		}
-		t.dbs[path.Base(file)] = db
+		t.dbs = append(t.dbs, db)
 	}
 }
 
@@ -143,7 +143,7 @@ func (t *ToolBox) next() *token {
 	return nil
 }
 
-func (t *ToolBox) read_url() string {
+func (t *ToolBox) read2end() string {
 	var runes []rune
 	for {
 		r, _, err := t.cmd_reader.ReadRune()
@@ -159,7 +159,20 @@ func (t *ToolBox) read_url() string {
 	return string(runes)
 }
 
+func (t *ToolBox) match(typ int) *token {
+	tk := t.next()
+	if tk.typ != typ {
+		panic("syntax error")
+	}
+	return tk
+}
+
 func (t *ToolBox) parse_exec(cmd string) {
+	defer func() {
+		if x := recover(); x != nil {
+			fmt.Println(x, cmd)
+		}
+	}()
 	t.cmd_reader = bytes.NewBufferString(cmd)
 	tk := t.next()
 	switch tk.typ {
@@ -173,6 +186,8 @@ func (t *ToolBox) parse_exec(cmd string) {
 		t.cmd_mgo()
 	case TK_SHOW:
 		t.cmd_show()
+	default:
+		fmt.Println("syntax err:", cmd)
 	}
 }
 
@@ -183,13 +198,58 @@ func (t *ToolBox) cmd_ls() {
 }
 
 func (t *ToolBox) cmd_select() {
-}
-
-func (t *ToolBox) cmd_replay() {
+	tk := t.match(TK_NUM)
+	if tk.num < len(t.dbs) {
+		t.selected = tk.num
+	} else {
+		fmt.Println("no such index")
+	}
 }
 
 func (t *ToolBox) cmd_mgo() {
+	t.mgo_url = t.read2end()
 }
 
 func (t *ToolBox) cmd_show() {
+	var param []int
+
+	t.match(TK_LPAREN)
+	tk := t.match(TK_NUM)
+	param = append(param, tk.num)
+	t.match(TK_COMMA)
+	tk = t.match(TK_NUM)
+	param = append(param, tk.num)
+	tk = t.next()
+	if tk.typ == TK_COMMA {
+		tk = t.match(TK_NUM)
+		param = append(param, tk.num)
+		t.match(TK_RPAREN)
+	} else if tk.typ == TK_RPAREN {
+	} else {
+		panic("syntax error")
+	}
+
+	fmt.Println("params:", param)
+}
+
+func (t *ToolBox) cmd_replay() {
+	var param []int
+
+	t.match(TK_LPAREN)
+	tk := t.match(TK_NUM)
+	param = append(param, tk.num)
+	t.match(TK_COMMA)
+	tk = t.match(TK_NUM)
+	param = append(param, tk.num)
+	tk = t.next()
+	if tk.typ == TK_COMMA {
+		tk = t.match(TK_NUM)
+		param = append(param, tk.num)
+		t.match(TK_RPAREN)
+	} else if tk.typ == TK_RPAREN {
+	} else {
+		panic("syntax error")
+	}
+
+	fmt.Println("params:", param)
 }
