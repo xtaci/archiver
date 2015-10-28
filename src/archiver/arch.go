@@ -5,7 +5,6 @@ import (
 	nsq "github.com/bitly/go-nsq"
 	"github.com/boltdb/bolt"
 	log "github.com/gonet2/libs/nsq-logger"
-	"gopkg.in/vmihailenco/msgpack.v2"
 	"os"
 	"os/signal"
 	"strings"
@@ -71,17 +70,18 @@ func (arch *Archiver) archive_task() {
 	for {
 		select {
 		case msg := <-arch.pending:
-			var record map[string]interface{}
-			err := msgpack.Unmarshal(msg, &record)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-
 			db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte(BOLTDB_BUCKET))
-				err := b.Put([]byte(fmt.Sprint(record["TS"])), msg)
-				return err
+				id, err := b.NextSequence()
+				if err != nil {
+					log.Critical(err)
+					return err
+				}
+				if err = b.Put([]byte(fmt.Sprint(id)), msg); err != nil {
+					log.Critical(err)
+					return err
+				}
+				return nil
 			})
 		case <-timer:
 			db.Close()
@@ -98,6 +98,7 @@ func (arch *Archiver) archive_task() {
 
 func (arch *Archiver) new_redolog() *bolt.DB {
 	file := DATA_DIRECTORY + time.Now().Format(REDO_TIME_FORMAT)
+	log.Info(file)
 	db, err := bolt.Open(file, 0600, nil)
 	if err != nil {
 		log.Critical(err)
