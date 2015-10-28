@@ -14,5 +14,6 @@ func TestParser(t *testing.T) {
 	tb.parse_exec("show(1,2)")
 	tb.parse_exec("replay(1,2)")
 	tb.parse_exec("replay(1,2,3)")
+	tb.parse_exec("replay(1,2,3")
 	t.Log(t)
 }
