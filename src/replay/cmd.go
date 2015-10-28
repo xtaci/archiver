@@ -3,8 +3,24 @@ package main
 import (
 	"fmt"
 	"github.com/boltdb/bolt"
+	"gopkg.in/vmihailenco/msgpack.v2"
 	"time"
 )
+
+// a data change
+type Change struct {
+	Collection string // collection
+	Field      string // field "a.b.c.1.d"
+	Doc        []byte // msgpack serialized data
+}
+
+// a redo record represents complete transaction
+type RedoRecord struct {
+	API     string   // the api name
+	UID     int32    // userid
+	TS      uint64   // timestamp should get from snowflake
+	Changes []Change // changes
+}
 
 const (
 	BOLTDB_BUCKET = "REDOLOG"
@@ -96,7 +112,29 @@ func (t *ToolBox) cmd_count() {
 }
 
 func (t *ToolBox) cmd_show() {
-	fmt.Println("TODO: implement show")
+	if t.fileid == -1 {
+		fmt.Println("bind first")
+	}
+
+	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BOLTDB_BUCKET))
+		i := 1
+		for {
+			bin := b.Get([]byte(fmt.Sprint(i)))
+			if bin == nil {
+				break
+			}
+
+			r := &RedoRecord{}
+			err := msgpack.Unmarshal(bin, r)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Printf("key:%v -> value:%#v\n", i, r)
+			i++
+		}
+		return nil
+	})
 }
 
 func (t *ToolBox) cmd_replay() {
