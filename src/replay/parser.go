@@ -15,11 +15,16 @@ import (
 const (
 	TK_UNDEFINED = iota
 	TK_LS
-	TK_SELECT
+	TK_DB
 	TK_REPLAY
 	TK_SHOW
 	TK_NUM
+	TK_KEYS
 	TK_MGO
+	TK_COUNT
+	TK_USERS
+	TK_BIND
+	TK_INFO
 	TK_LPAREN
 	TK_RPAREN
 	TK_COMMA
@@ -28,10 +33,15 @@ const (
 
 var cmds = map[string]int{
 	"ls":     TK_LS,
-	"select": TK_SELECT,
+	"db":     TK_DB,
 	"replay": TK_REPLAY,
 	"show":   TK_SHOW,
 	"mgo":    TK_MGO,
+	"keys":   TK_KEYS,
+	"count":  TK_COUNT,
+	"bind":   TK_BIND,
+	"users":  TK_USERS,
+	"info":   TK_INFO,
 }
 
 type token struct {
@@ -47,11 +57,14 @@ Commands:
 	ls 				-- list all database files
 	mgo mongodb://xxx/mydb		-- define mongodb url for replay
 
-	select 1				-- choose a file
+	db(1)				-- choose a database file (all operations below are under this db)
+		users()				-- print all users of this database
+		info()				-- print summary of this database
+	bind(1234)			-- bind operations on userid (all operations below binded to a user)
+		count()				-- print number of records
+		keys()				-- print all keys
 		show(1, 100)			-- show all elements from 1, count 100
-		show(1234, 1,100)		-- show elements for a user(1234) from 1, count 100
-		replay(1234, 50, 100)		-- replay to user(1234) from 50 count 50
-		replay(1234)			-- replay all changes to a user(1234) 
+		replay(1,100)			-- replay all changes from 1, count 100
 `
 
 type ToolBox struct {
@@ -179,14 +192,24 @@ func (t *ToolBox) parse_exec(cmd string) {
 	switch tk.typ {
 	case TK_LS:
 		t.cmd_ls()
-	case TK_SELECT:
-		t.cmd_select()
+	case TK_DB:
+		t.cmd_db()
 	case TK_REPLAY:
 		t.cmd_replay()
 	case TK_MGO:
 		t.cmd_mgo()
 	case TK_SHOW:
 		t.cmd_show()
+	case TK_USERS:
+		t.cmd_users()
+	case TK_BIND:
+		t.cmd_bind()
+	case TK_KEYS:
+		t.cmd_keys()
+	case TK_INFO:
+		t.cmd_info()
+	case TK_COUNT:
+		t.cmd_count()
 	default:
 		fmt.Println("syntax err:", cmd)
 	}
@@ -198,9 +221,11 @@ func (t *ToolBox) cmd_ls() {
 	}
 }
 
-func (t *ToolBox) cmd_select() {
+func (t *ToolBox) cmd_db() {
+	t.match(TK_LPAREN)
 	tk := t.match(TK_NUM)
 	if tk.num < len(t.dbs) {
+		t.match(TK_RPAREN)
 		t.selected = tk.num
 	} else {
 		fmt.Println("no such index")
@@ -209,6 +234,21 @@ func (t *ToolBox) cmd_select() {
 
 func (t *ToolBox) cmd_mgo() {
 	t.mgo_url = t.read2end()
+}
+
+func (t *ToolBox) cmd_users() {
+}
+
+func (t *ToolBox) cmd_bind() {
+}
+
+func (t *ToolBox) cmd_keys() {
+}
+
+func (t *ToolBox) cmd_info() {
+}
+
+func (t *ToolBox) cmd_count() {
 }
 
 func (t *ToolBox) cmd_show() {
@@ -220,16 +260,7 @@ func (t *ToolBox) cmd_show() {
 	t.match(TK_COMMA)
 	tk = t.match(TK_NUM)
 	param = append(param, tk.num)
-	tk = t.next()
-	if tk.typ == TK_COMMA {
-		tk = t.match(TK_NUM)
-		param = append(param, tk.num)
-		t.match(TK_RPAREN)
-	} else if tk.typ == TK_RPAREN {
-	} else {
-		panic("syntax error")
-	}
-
+	t.match(TK_RPAREN)
 	fmt.Println("params:", param)
 }
 
@@ -242,15 +273,6 @@ func (t *ToolBox) cmd_replay() {
 	t.match(TK_COMMA)
 	tk = t.match(TK_NUM)
 	param = append(param, tk.num)
-	tk = t.next()
-	if tk.typ == TK_COMMA {
-		tk = t.match(TK_NUM)
-		param = append(param, tk.num)
-		t.match(TK_RPAREN)
-	} else if tk.typ == TK_RPAREN {
-	} else {
-		panic("syntax error")
-	}
-
+	t.match(TK_RPAREN)
 	fmt.Println("params:", param)
 }
