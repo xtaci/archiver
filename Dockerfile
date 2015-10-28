@@ -4,8 +4,8 @@ ENV GOBIN /go/bin
 COPY . /go
 WORKDIR /go
 ENV GOPATH /go:/go/.godeps
-RUN go install arch
+RUN go install archiver
 RUN rm -rf pkg src .godeps
-ENTRYPOINT /go/bin/arch
+ENTRYPOINT /go/bin/archiver
 RUN mkdir /data
 VOLUME /data
