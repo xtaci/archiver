@@ -62,6 +62,7 @@ type ToolBox struct {
 }
 
 func (t *ToolBox) init(dir string) {
+	t.selected = -1
 	files, err := filepath.Glob(dir + "/*.RDO")
 	if err != nil {
 		log.Println(err)
