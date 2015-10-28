@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/boltdb/bolt"
 	"io"
 	"log"
@@ -77,11 +78,6 @@ func (t *ToolBox) init(dir string) {
 	}
 }
 
-func (t *ToolBox) exec(cmd string) {
-	t.cmd_reader = bytes.NewBufferString(cmd)
-	t.parse(cmd)
-}
-
 //////////////////////////////////////////
 // parser
 func (t *ToolBox) next() *token {
@@ -147,6 +143,53 @@ func (t *ToolBox) next() *token {
 	return nil
 }
 
-func (t *ToolBox) parse(cmd string) {
+func (t *ToolBox) read_url() string {
+	var runes []rune
+	for {
+		r, _, err := t.cmd_reader.ReadRune()
+		if err == io.EOF {
+			break
+		} else if r == '\r' || r == '\n' {
+			break
+		} else {
+			runes = append(runes, r)
+		}
+	}
 
+	return string(runes)
+}
+
+func (t *ToolBox) parse_exec(cmd string) {
+	t.cmd_reader = bytes.NewBufferString(cmd)
+	tk := t.next()
+	switch tk.typ {
+	case TK_LS:
+		t.cmd_ls()
+	case TK_SELECT:
+		t.cmd_select()
+	case TK_REPLAY:
+		t.cmd_replay()
+	case TK_MGO:
+		t.cmd_mgo()
+	case TK_SHOW:
+		t.cmd_show()
+	}
+}
+
+func (t *ToolBox) cmd_ls() {
+	for k, v := range t.dbs {
+		fmt.Printf("%v -- %v\n", k, v)
+	}
+}
+
+func (t *ToolBox) cmd_select() {
+}
+
+func (t *ToolBox) cmd_replay() {
+}
+
+func (t *ToolBox) cmd_mgo() {
+}
+
+func (t *ToolBox) cmd_show() {
 }
