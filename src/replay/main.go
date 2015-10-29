@@ -28,7 +28,7 @@ func prompt(tb *ToolBox) {
 		ps += fmt.Sprintf("\033[0;31mfile(%v)\033[0m", tb.fileid)
 	}
 	if tb.userid != -1 {
-		ps += fmt.Sprintf("\033[0;32muserid(%v)\033[0m", tb.userid)
+		ps += fmt.Sprintf("\033[0;32mid(%v)\033[0m", tb.userid)
 	}
 	if tb.duration_set {
 		ps += fmt.Sprintf("\033[1m(%v -- %v)\033[0m", tb.duration_a, tb.duration_b)
