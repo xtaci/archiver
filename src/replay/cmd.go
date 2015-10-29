@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"gopkg.in/mgo.v2"
@@ -215,13 +216,14 @@ func (t *ToolBox) cmd_ls() {
 				fmt.Println("data corrupted, record-id:", k)
 				continue
 			}
+			key := binary.BigEndian.Uint64(k)
 			if r.UID == int32(t.userid) {
 				if !t.duration_set {
-					fmt.Printf("%v->%#v\n", string(k), r)
+					fmt.Printf("%v->%#v\n", key, r)
 				} else { // parse snowflake-id
 					ms := int64(r.TS >> 22)
 					if ms >= ms_a && ms <= ms_b {
-						fmt.Printf("%v->%#v\n", string(k), r)
+						fmt.Printf("%v->%#v\n", key, r)
 					}
 				}
 			}
@@ -275,5 +277,5 @@ func (t *ToolBox) to_ms() (int64, int64) {
 }
 
 func do_update(k []byte, r *RedoRecord) {
-	fmt.Println("updating:", string(k))
+	fmt.Println("updating:", binary.BigEndian.Uint64(k))
 }
