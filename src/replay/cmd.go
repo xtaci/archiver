@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/boltdb/bolt"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"time"
 )
@@ -95,7 +96,9 @@ func (t *ToolBox) cmd_show() {
 	recid_tk := t.match(TK_NUM)
 	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BOLTDB_BUCKET))
-		bin := b.Get([]byte(fmt.Sprint(recid_tk.num)))
+		key := make([]byte, 8)
+		binary.BigEndian.PutUint64(key, uint64(recid_tk.num))
+		bin := b.Get(key)
 		if bin == nil {
 			fmt.Println("no such record")
 			return nil
@@ -114,7 +117,7 @@ func (t *ToolBox) cmd_show() {
 		for k := range r.Changes {
 			fmt.Printf("Change #%v Collection:%v Field:%v\n", k, r.Changes[k].Collection, r.Changes[k].Field)
 			raw := make(map[string]interface{})
-			err := msgpack.Unmarshal(r.Changes[k].Doc, &raw)
+			err := bson.Unmarshal(r.Changes[k].Doc, &raw)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -238,7 +241,7 @@ func (t *ToolBox) cmd_replay() {
 		return
 	}
 	mgo_tk := t.match(TK_STRING)
-	_, err := mgo.Dial(mgo_tk.literal)
+	sess, err := mgo.Dial(mgo_tk.literal)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -259,11 +262,11 @@ func (t *ToolBox) cmd_replay() {
 			}
 			if r.UID == int32(t.userid) {
 				if !t.duration_set {
-					do_update(k, r)
+					do_update(k, r, sess)
 				} else { // parse snowflake-id
 					ms := int64(r.TS >> 22)
 					if ms >= ms_a && ms <= ms_b {
-						do_update(k, r)
+						do_update(k, r, sess)
 					}
 				}
 			}
@@ -276,6 +279,21 @@ func (t *ToolBox) to_ms() (int64, int64) {
 	return t.duration_a.UnixNano() / int64(time.Millisecond), t.duration_b.UnixNano() / int64(time.Millisecond)
 }
 
-func do_update(k []byte, r *RedoRecord) {
-	fmt.Println("updating:", binary.BigEndian.Uint64(k))
+func do_update(k []byte, r *RedoRecord, sess *mgo.Session) {
+	fmt.Println("UPDATING:", binary.BigEndian.Uint64(k))
+	mdb := sess.DB("")
+	for k := range r.Changes {
+		fmt.Printf("Doing Update On Collection:%v Field:%v\n", r.Changes[k].Collection, r.Changes[k].Field)
+		raw := make(map[string]interface{})
+		err := bson.Unmarshal(r.Changes[k].Doc, &raw)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, bson.M{"$set": bson.M{r.Changes[k].Field: raw}})
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+	}
 }
