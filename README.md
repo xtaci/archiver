@@ -6,8 +6,8 @@
 
 ## 使用
 创建好镜像后:           
-$docker run --name archiver -it archiver /go/bin/archiver                
-$docker run --rm --name replay --volumes-from archiver -it archiver /go/bin/replay          
+> $sudo docker run --name archiver -d archiver /go/bin/archiver                
+> $sudo docker run --rm --name replay --volumes-from archiver -it archiver /go/bin/replay          
 
 ## 安装
 参考Dockerfile
