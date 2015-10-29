@@ -68,7 +68,7 @@ Global operations to file:
 > info(2)	-- print summary of file#2
 
 Bind Operations to user:
-> bind(1, 1234)	-- all operations below are binded to a file#1 & user#1234
+> bind(1, 1234)		-- all operations below are binded to a file#1 & user#1234
 > count			-- print number of records of the user
 > show			-- show all elements of the user
 > replay("mongodb://172.17.42.1/mydb")	-- replay all changes of the user
