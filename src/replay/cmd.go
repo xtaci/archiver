@@ -290,7 +290,11 @@ func do_update(k []byte, r *RedoRecord, sess *mgo.Session) {
 			fmt.Println(err)
 			continue
 		}
-		_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, bson.M{"$set": bson.M{r.Changes[k].Field: raw}})
+		if r.Changes[k].Field != "" {
+			_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, bson.M{"$set": bson.M{r.Changes[k].Field: raw}})
+		} else {
+			_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, raw)
+		}
 		if err != nil {
 			fmt.Println(err)
 			continue
