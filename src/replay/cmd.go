@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/boltdb/bolt"
+	"gopkg.in/mgo.v2"
 	"gopkg.in/vmihailenco/msgpack.v2"
 	"time"
 )
@@ -230,9 +231,49 @@ func (t *ToolBox) cmd_ls() {
 }
 
 func (t *ToolBox) cmd_replay() {
-	fmt.Println("TODO: implement replay")
+	if t.fileid == -1 {
+		fmt.Println("bind first")
+		return
+	}
+	mgo_tk := t.match(TK_STRING)
+	_, err := mgo.Dial(mgo_tk.literal)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	var ms_a, ms_b int64
+	if t.duration_set {
+		ms_a, ms_b = t.to_ms()
+	}
+	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BOLTDB_BUCKET))
+		c := b.Cursor()
+		r := &RedoRecord{}
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			err := msgpack.Unmarshal(v, r)
+			if err != nil {
+				fmt.Println("data corrupted, record-id:", k)
+				continue
+			}
+			if r.UID == int32(t.userid) {
+				if !t.duration_set {
+					do_update(k, r)
+				} else { // parse snowflake-id
+					ms := int64(r.TS >> 22)
+					if ms >= ms_a && ms <= ms_b {
+						do_update(k, r)
+					}
+				}
+			}
+		}
+		return nil
+	})
 }
 
 func (t *ToolBox) to_ms() (int64, int64) {
 	return t.duration_a.UnixNano() / int64(time.Millisecond), t.duration_b.UnixNano() / int64(time.Millisecond)
+}
+
+func do_update(k []byte, r *RedoRecord) {
+	fmt.Println("updating:", string(k))
 }

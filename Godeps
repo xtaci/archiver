@@ -2,3 +2,4 @@ github.com/bitly/go-nsq HEAD
 github.com/gonet2/libs HEAD
 github.com/boltdb/bolt HEAD
 github.com/peterbourgon/g2s HEAD
+gopkg.in/mgo.v2 HEAD

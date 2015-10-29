@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"encoding/binary"
 	nsq "github.com/bitly/go-nsq"
 	"github.com/boltdb/bolt"
 	log "github.com/gonet2/libs/nsq-logger"
@@ -67,6 +67,7 @@ func (arch *Archiver) archive_task() {
 	signal.Notify(sig, syscall.SIGTERM)
 	timer := time.After(REDO_ROTATE_INTERVAL)
 	db := arch.new_redolog()
+	key := make([]byte, 8)
 	for {
 		select {
 		case msg := <-arch.pending:
@@ -77,7 +78,8 @@ func (arch *Archiver) archive_task() {
 					log.Critical(err)
 					return err
 				}
-				if err = b.Put([]byte(fmt.Sprint(id)), msg); err != nil {
+				binary.BigEndian.PutUint64(key, uint64(id))
+				if err = b.Put(key, msg); err != nil {
 					log.Critical(err)
 					return err
 				}

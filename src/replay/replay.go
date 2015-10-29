@@ -106,7 +106,7 @@ func (t *ToolBox) init(dir string) {
 	sort.Sort(file_sort(files))
 
 	for _, file := range files {
-		db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second, ReadOnly: true})
+		db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 2 * time.Second, ReadOnly: true})
 		if err != nil {
 			log.Println(err)
 			continue
