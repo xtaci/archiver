@@ -137,30 +137,74 @@ func (t *ToolBox) cmd_duration() {
 }
 
 func (t *ToolBox) cmd_count() {
-	fmt.Println("TODO: implement count")
+	if t.fileid == -1 {
+		fmt.Println("bind first")
+		return
+	}
+
+	var ms_a, ms_b int64
+	if t.duration_set {
+		ms_a, ms_b = t.to_ms()
+	}
+
+	// count
+	count := 0
+	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BOLTDB_BUCKET))
+		c := b.Cursor()
+		brief := &Brief{}
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			err := msgpack.Unmarshal(v, brief)
+			if err != nil {
+				fmt.Println("data corrupted, record-id:", k)
+				continue
+			}
+			if brief.UID == int32(t.userid) {
+				if !t.duration_set {
+					count++
+				} else { // parse snowflake-id
+					ms := int64(brief.TS >> 22)
+					if ms >= ms_a && ms <= ms_b {
+						count++
+					}
+				}
+			}
+		}
+		return nil
+	})
+
+	fmt.Printf("total:%v\n", count)
 }
 
 func (t *ToolBox) cmd_show() {
 	if t.fileid == -1 {
 		fmt.Println("bind first")
+		return
 	}
-
+	var ms_a, ms_b int64
+	if t.duration_set {
+		ms_a, ms_b = t.to_ms()
+	}
 	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BOLTDB_BUCKET))
-		i := 1
-		for {
-			bin := b.Get([]byte(fmt.Sprint(i)))
-			if bin == nil {
-				break
-			}
-
-			r := &RedoRecord{}
-			err := msgpack.Unmarshal(bin, r)
+		c := b.Cursor()
+		r := &RedoRecord{}
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			err := msgpack.Unmarshal(v, r)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Println("data corrupted, record-id:", k)
+				continue
 			}
-			fmt.Printf("key:%v -> value:%#v\n", i, r)
-			i++
+			if r.UID == int32(t.userid) {
+				if !t.duration_set {
+					fmt.Printf("%#v\n", r)
+				} else { // parse snowflake-id
+					ms := int64(r.TS >> 22)
+					if ms >= ms_a && ms <= ms_b {
+						fmt.Printf("%#v\n", r)
+					}
+				}
+			}
 		}
 		return nil
 	})
@@ -168,4 +212,8 @@ func (t *ToolBox) cmd_show() {
 
 func (t *ToolBox) cmd_replay() {
 	fmt.Println("TODO: implement replay")
+}
+
+func (t *ToolBox) to_ms() (int64, int64) {
+	return t.duration_a.UnixNano() / int64(time.Millisecond), t.duration_b.UnixNano() / int64(time.Millisecond)
 }
