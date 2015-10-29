@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"time"
 	"unicode"
@@ -15,6 +16,9 @@ import (
 
 const (
 	TK_UNDEFINED = iota
+	TK_P
+	TK_S
+	TK_U
 	TK_LS
 	TK_CLEAR
 	TK_HELP
@@ -23,28 +27,23 @@ const (
 	TK_NUM
 	TK_STRING
 	TK_COUNT
-	TK_USERS
 	TK_BIND
-	TK_INFO
-	TK_LPAREN
-	TK_RPAREN
-	TK_COMMA
 	TK_DURATION
 	TK_EOF
 )
 
 var cmds = map[string]int{
-	"ls":    TK_LS,
+	"p":     TK_P,
 	"help":  TK_HELP,
 	"clear": TK_CLEAR,
 
-	"users": TK_USERS,
-	"info":  TK_INFO,
+	"u": TK_U,
+	"s": TK_S,
 
 	"bind":     TK_BIND,
-	"count":    TK_COUNT,
+	"sum":      TK_COUNT,
 	"duration": TK_DURATION,
-	"show":     TK_SHOW,
+	"ls":       TK_LS,
 	"replay":   TK_REPLAY,
 }
 
@@ -58,27 +57,26 @@ type token struct {
 var help = `REDO Replay Tool
 Commands:
 
-list all database files(sorted by time):
-> ls
+> p 		-- list all database files(sorted by time):
 > help		-- print this text
 > clear 	-- clear all bindings
 
 Global operations to file:
-> users(1)	-- print all users of file#1
-> info(2)	-- print summary of file#2
+> u1		-- print all users of file#1
+> s2		-- print summary of file#2
 
 Bind Operations to user:
-> bind(1, 1234)		-- all operations below are binded to a file#1 & user#1234
-> count			-- print number of records of the user
-> show			-- show all elements of the user
-> replay("mongodb://172.17.42.1/mydb")	-- replay all changes of the user
+> bind 1 1234		-- all operations below are binded to a file#1 & user#1234
+> sum 			-- print number of records of the user
+> ls 			-- list all elements of the user
+> replay "mongodb://172.17.42.1/mydb"	-- replay all changes of the user
 
 Bind operations to duration:
-> duration("2015-10-28T14:53:27", "2015-10-29T14:53:27")	
+> duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"
 (all operations below are binded to this duration)
-> count		-- print number of records of the user in this duration
-> show		-- show all elements of the user in this duration
-> replay("mongodb://172.17.42.1/mydb")	-- replay all changes of the user in this duration
+> sum		-- print number of records of the user in this duration
+> ls 		-- show all elements of the user in this duration
+> replay "mongodb://172.17.42.1/mydb"	-- replay all changes of the user in this duration
 `
 
 type ToolBox struct {
@@ -92,6 +90,17 @@ type ToolBox struct {
 	cmd_reader   *bytes.Buffer // cmds
 }
 
+type file_sort []string
+
+func (a file_sort) Len() int      { return len(a) }
+func (a file_sort) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+func (a file_sort) Less(i, j int) bool {
+	layout := "REDO-2006-01-02T15:04:05.RDO"
+	tm_a, _ := time.Parse(layout, a[i])
+	tm_b, _ := time.Parse(layout, a[j])
+	return tm_a.Unix() < tm_b.Unix()
+}
+
 func (t *ToolBox) init(dir string) {
 	t.cmd_clear()
 	files, err := filepath.Glob(dir + "/*.RDO")
@@ -99,6 +108,8 @@ func (t *ToolBox) init(dir string) {
 		log.Println(err)
 		os.Exit(-1)
 	}
+	// sort by creation time
+	sort.Sort(file_sort(files))
 
 	for _, file := range files {
 		db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 1 * time.Second, ReadOnly: true})
@@ -180,12 +191,6 @@ func (t *ToolBox) next() *token {
 		t.num, _ = strconv.Atoi(string(runes))
 		t.typ = TK_NUM
 		return t
-	} else if r == '(' {
-		return &token{typ: TK_LPAREN}
-	} else if r == ')' {
-		return &token{typ: TK_RPAREN}
-	} else if r == ',' {
-		return &token{typ: TK_COMMA}
 	}
 	return &token{}
 }
@@ -207,17 +212,17 @@ func (t *ToolBox) parse_exec(cmd string) {
 	t.cmd_reader = bytes.NewBufferString(cmd)
 	tk := t.next()
 	switch tk.typ {
-	case TK_LS:
-		t.cmd_ls()
+	case TK_P:
+		t.cmd_p()
 	case TK_HELP:
 		t.cmd_help()
 	case TK_CLEAR:
 		t.cmd_clear()
 
-	case TK_USERS:
-		t.cmd_users()
-	case TK_INFO:
-		t.cmd_info()
+	case TK_U:
+		t.cmd_u()
+	case TK_S:
+		t.cmd_s()
 
 	case TK_DURATION:
 		t.cmd_duration()
@@ -225,8 +230,8 @@ func (t *ToolBox) parse_exec(cmd string) {
 		t.cmd_bind()
 	case TK_COUNT:
 		t.cmd_count()
-	case TK_SHOW:
-		t.cmd_show()
+	case TK_LS:
+		t.cmd_ls()
 	case TK_REPLAY:
 		t.cmd_replay()
 	default:

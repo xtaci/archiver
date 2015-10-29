@@ -34,7 +34,7 @@ const (
 	LAYOUT        = "2006-01-02T15:04:05"
 )
 
-func (t *ToolBox) cmd_ls() {
+func (t *ToolBox) cmd_p() {
 	for k, v := range t.dbs {
 		fmt.Printf("%v -- %v\n", k, v)
 	}
@@ -50,10 +50,8 @@ func (t *ToolBox) cmd_clear() {
 	t.duration_set = false
 }
 
-func (t *ToolBox) cmd_users() {
-	t.match(TK_LPAREN)
+func (t *ToolBox) cmd_u() {
 	fileid_tk := t.match(TK_NUM)
-	t.match(TK_RPAREN)
 	if fileid_tk.num >= len(t.dbs) {
 		fmt.Println("no such file", fileid_tk.num)
 		return
@@ -80,11 +78,8 @@ func (t *ToolBox) cmd_users() {
 	}
 }
 
-func (t *ToolBox) cmd_info() {
-	t.match(TK_LPAREN)
+func (t *ToolBox) cmd_s() {
 	fileid_tk := t.match(TK_NUM)
-	t.match(TK_RPAREN)
-
 	if fileid_tk.num >= len(t.dbs) {
 		fmt.Println("no such file", fileid_tk.num)
 		return
@@ -98,12 +93,8 @@ func (t *ToolBox) cmd_info() {
 }
 
 func (t *ToolBox) cmd_bind() {
-	t.match(TK_LPAREN)
 	fileid_tk := t.match(TK_NUM)
-	t.match(TK_COMMA)
 	userid_tk := t.match(TK_NUM)
-	t.match(TK_RPAREN)
-
 	if fileid_tk.num < len(t.dbs) {
 		t.fileid = fileid_tk.num
 		t.userid = userid_tk.num
@@ -113,11 +104,8 @@ func (t *ToolBox) cmd_bind() {
 }
 
 func (t *ToolBox) cmd_duration() {
-	t.match(TK_LPAREN)
 	tk_a := t.match(TK_STRING)
-	t.match(TK_COMMA)
 	tk_b := t.match(TK_STRING)
-	t.match(TK_RPAREN)
 
 	tm_a, err := time.Parse(LAYOUT, tk_a.literal)
 	if err != nil {
@@ -176,7 +164,7 @@ func (t *ToolBox) cmd_count() {
 	fmt.Printf("total:%v\n", count)
 }
 
-func (t *ToolBox) cmd_show() {
+func (t *ToolBox) cmd_ls() {
 	if t.fileid == -1 {
 		fmt.Println("bind first")
 		return
