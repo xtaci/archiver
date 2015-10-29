@@ -13,11 +13,23 @@ type testdoc struct {
 
 func TestRedo(t *testing.T) {
 	doc := testdoc{}
-	for i := 0; i < 10; i++ {
-		r := redo.NewRedoRecord(1, "test", uint64(time.Now().Unix()))
-		doc.Name = "YYY"
-		doc.Age = i
-		r.AddChange("test", "field_a", doc)
-		redo.Publish(r)
-	}
+	// subdoc
+	r := redo.NewRedoRecord(1, "test1", ts())
+	doc.Name = "name1"
+	doc.Age = 18
+	r.AddChange("test", "xxx", doc)
+	redo.Publish(r)
+
+	r = redo.NewRedoRecord(2, "test2", ts())
+	doc.Name = "name2"
+	doc.Age = 22
+	r.AddChange("test", "", doc)
+	redo.Publish(r)
+}
+
+const TS_MASK = 0x1FFFFFFFFFF
+
+func ts() uint64 {
+	t := time.Now().UnixNano() / int64(time.Millisecond)
+	return (uint64(t) & TS_MASK) << 22
 }
