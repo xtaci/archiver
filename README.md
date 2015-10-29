@@ -9,6 +9,7 @@
 > $sudo docker run --name archiver -d archiver /go/bin/archiver                
 > $sudo docker run -rm --volumes-from archiver -it archiver /go/bin/replay          
 
+![replay](replay.png)
 ## 安装
 参考Dockerfile
 
