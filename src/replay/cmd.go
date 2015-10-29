@@ -10,7 +10,7 @@ import (
 // a data change
 type Change struct {
 	Collection string // collection
-	Field      string // field "a.b.c.1.d"
+	Field      string // field "a.b.c.d"
 	Doc        []byte // msgpack serialized data
 }
 
@@ -20,6 +20,13 @@ type RedoRecord struct {
 	UID     int32    // userid
 	TS      uint64   // timestamp should get from snowflake
 	Changes []Change // changes
+}
+
+// a redo record represents complete transaction
+type Brief struct {
+	API string // the api name
+	UID int32  // userid
+	TS  uint64 // timestamp should get from snowflake
 }
 
 const (
@@ -47,8 +54,30 @@ func (t *ToolBox) cmd_users() {
 	t.match(TK_LPAREN)
 	fileid_tk := t.match(TK_NUM)
 	t.match(TK_RPAREN)
+	if fileid_tk.num >= len(t.dbs) {
+		fmt.Println("no such file", fileid_tk.num)
+		return
+	}
+	users := make(map[int32]bool)
+	t.dbs[fileid_tk.num].View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(BOLTDB_BUCKET))
+		c := b.Cursor()
+		brief := &Brief{}
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			err := msgpack.Unmarshal(v, brief)
+			if err != nil {
+				fmt.Println("data corrupted, record-id:", k)
+				continue
+			}
+			users[brief.UID] = true
+		}
+		return nil
+	})
 
-	fmt.Println("TODO: list users of this db:", fileid_tk)
+	fmt.Println("users of this db:")
+	for userid := range users {
+		fmt.Println(userid)
+	}
 }
 
 func (t *ToolBox) cmd_info() {
