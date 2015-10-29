@@ -17,8 +17,6 @@ import (
 const (
 	TK_UNDEFINED = iota
 	TK_P
-	TK_S
-	TK_U
 	TK_LS
 	TK_CLEAR
 	TK_HELP
@@ -26,7 +24,7 @@ const (
 	TK_SHOW
 	TK_NUM
 	TK_STRING
-	TK_COUNT
+	TK_SUM
 	TK_BIND
 	TK_DURATION
 	TK_EOF
@@ -37,14 +35,12 @@ var cmds = map[string]int{
 	"help":  TK_HELP,
 	"clear": TK_CLEAR,
 
-	"u": TK_U,
-	"s": TK_S,
-
 	"bind":     TK_BIND,
-	"sum":      TK_COUNT,
+	"sum":      TK_SUM,
 	"duration": TK_DURATION,
 	"ls":       TK_LS,
 	"replay":   TK_REPLAY,
+	"show":     TK_SHOW,
 }
 
 type token struct {
@@ -60,15 +56,13 @@ Commands:
 > p 		-- list all database files(sorted by time):
 > help		-- print this text
 > clear 	-- clear all bindings
-
-Global operations to file:
-> u1		-- print all users of file#1
-> s2		-- print summary of file#2
+> p1		-- print summary of file#1(including users & num records)
 
 Bind Operations to user:
 > bind 1 1234		-- all operations below are binded to a file#1 & user#1234
 > sum 			-- print number of records of the user
 > ls 			-- list all elements of the user
+> show 33		-- show detailed records with id 33
 > replay "mongodb://172.17.42.1/mydb"	-- replay all changes of the user
 
 Bind operations to duration:
@@ -218,22 +212,18 @@ func (t *ToolBox) parse_exec(cmd string) {
 		t.cmd_help()
 	case TK_CLEAR:
 		t.cmd_clear()
-
-	case TK_U:
-		t.cmd_u()
-	case TK_S:
-		t.cmd_s()
-
 	case TK_DURATION:
 		t.cmd_duration()
 	case TK_BIND:
 		t.cmd_bind()
-	case TK_COUNT:
-		t.cmd_count()
+	case TK_SUM:
+		t.cmd_sum()
 	case TK_LS:
 		t.cmd_ls()
 	case TK_REPLAY:
 		t.cmd_replay()
+	case TK_SHOW:
+		t.cmd_show()
 	default:
 		fmt.Println("unkown command:", cmd)
 	}

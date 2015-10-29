@@ -35,8 +35,43 @@ const (
 )
 
 func (t *ToolBox) cmd_p() {
-	for k, v := range t.dbs {
-		fmt.Printf("%v -- %v\n", k, v)
+	tk := t.next()
+	if tk.typ == TK_NUM { // p with param
+		if tk.num >= len(t.dbs) {
+			fmt.Println("no such file", tk.num)
+			return
+		}
+		// stats
+		t.dbs[tk.num].View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(BOLTDB_BUCKET))
+			fmt.Printf("%#v\n", b.Stats())
+			return nil
+		})
+
+		// users
+		users := make(map[int32]int)
+		t.dbs[tk.num].View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(BOLTDB_BUCKET))
+			c := b.Cursor()
+			brief := &Brief{}
+			for k, v := c.First(); k != nil; k, v = c.Next() {
+				err := msgpack.Unmarshal(v, brief)
+				if err != nil {
+					fmt.Println("data corrupted, record-id:", k)
+					continue
+				}
+				users[brief.UID]++
+			}
+			return nil
+		})
+		fmt.Println("users of this db:")
+		for userid, count := range users {
+			fmt.Println("id:", userid, "count:", count)
+		}
+	} else { // only p
+		for k, v := range t.dbs {
+			fmt.Printf("%v -- %v\n", k, v)
+		}
 	}
 }
 
@@ -50,44 +85,40 @@ func (t *ToolBox) cmd_clear() {
 	t.duration_set = false
 }
 
-func (t *ToolBox) cmd_u() {
-	fileid_tk := t.match(TK_NUM)
-	if fileid_tk.num >= len(t.dbs) {
-		fmt.Println("no such file", fileid_tk.num)
+func (t *ToolBox) cmd_show() {
+	if t.fileid == -1 {
+		fmt.Println("bind first")
 		return
 	}
-	users := make(map[int32]bool)
-	t.dbs[fileid_tk.num].View(func(tx *bolt.Tx) error {
+	recid_tk := t.match(TK_NUM)
+	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BOLTDB_BUCKET))
-		c := b.Cursor()
-		brief := &Brief{}
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			err := msgpack.Unmarshal(v, brief)
+		bin := b.Get([]byte(fmt.Sprint(recid_tk.num)))
+		if bin == nil {
+			fmt.Println("no such record")
+			return nil
+		}
+		r := &RedoRecord{}
+		err := msgpack.Unmarshal(bin, r)
+		if err != nil {
+			fmt.Println("data corrupted")
+			return nil
+		}
+
+		fmt.Println("UserId:", r.UID)
+		fmt.Println("API:", r.API)
+		ts := int64(r.TS >> 22)
+		fmt.Println("CreatedAt:", time.Unix(ts/1000, 0))
+		for k := range r.Changes {
+			fmt.Printf("Change #%v Collection:%v Field:%v\n", k, r.Changes[k].Collection, r.Changes[k].Field)
+			raw := make(map[string]interface{})
+			err := msgpack.Unmarshal(r.Changes[k].Doc, &raw)
 			if err != nil {
-				fmt.Println("data corrupted, record-id:", k)
+				fmt.Println(err)
 				continue
 			}
-			users[brief.UID] = true
+			fmt.Printf("Doc %#v\n", raw)
 		}
-		return nil
-	})
-
-	fmt.Println("users of this db:")
-	for userid := range users {
-		fmt.Println(userid)
-	}
-}
-
-func (t *ToolBox) cmd_s() {
-	fileid_tk := t.match(TK_NUM)
-	if fileid_tk.num >= len(t.dbs) {
-		fmt.Println("no such file", fileid_tk.num)
-		return
-	}
-
-	t.dbs[fileid_tk.num].View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(BOLTDB_BUCKET))
-		fmt.Printf("%#v\n", b.Stats())
 		return nil
 	})
 }
@@ -124,7 +155,7 @@ func (t *ToolBox) cmd_duration() {
 	t.duration_set = true
 }
 
-func (t *ToolBox) cmd_count() {
+func (t *ToolBox) cmd_sum() {
 	if t.fileid == -1 {
 		fmt.Println("bind first")
 		return
@@ -176,7 +207,7 @@ func (t *ToolBox) cmd_ls() {
 	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BOLTDB_BUCKET))
 		c := b.Cursor()
-		r := &RedoRecord{}
+		r := &Brief{}
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			err := msgpack.Unmarshal(v, r)
 			if err != nil {
@@ -185,11 +216,11 @@ func (t *ToolBox) cmd_ls() {
 			}
 			if r.UID == int32(t.userid) {
 				if !t.duration_set {
-					fmt.Printf("%#v\n", r)
+					fmt.Printf("%v->%#v\n", string(k), r)
 				} else { // parse snowflake-id
 					ms := int64(r.TS >> 22)
 					if ms >= ms_a && ms <= ms_b {
-						fmt.Printf("%#v\n", r)
+						fmt.Printf("%v->%#v\n", string(k), r)
 					}
 				}
 			}
