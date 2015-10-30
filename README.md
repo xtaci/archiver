@@ -10,6 +10,7 @@
 > $sudo docker run -rm --volumes-from archiver -it archiver /go/bin/replay      
 
 # REPLAY 工具
+注意，被archiver打开的归档日志不能被replay打开
 ![replay](replay.png)
 
 ## 安装
