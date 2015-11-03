@@ -6,8 +6,9 @@
 
 ## 使用
 创建好镜像后:           
-> $sudo docker run --name archiver -d archiver /go/bin/archiver                
-> $sudo docker run -rm --volumes-from archiver -it archiver /go/bin/replay      
+$ docker create -v /data --name redologs /bin/true
+$ docker run --volumes-from redologs  --name archiver -d archiver /go/bin/archiver
+$ docker run --rm --name replay --volumes-from redologs  -it archiver /go/bin/replay 
 
 # REPLAY 工具
 注意，被archiver打开的归档日志不能被replay打开
