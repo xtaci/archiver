@@ -22,6 +22,8 @@ const (
 	REDO_ROTATE_INTERVAL = 24 * time.Hour
 	BOLTDB_BUCKET        = "REDOLOG"
 	DATA_DIRECTORY       = "/data/"
+	BATCH_SIZE           = 1024
+	SYNC_INTERVAL        = 10 * time.Millisecond
 )
 
 type Archiver struct {
@@ -30,7 +32,7 @@ type Archiver struct {
 }
 
 func (arch *Archiver) init() {
-	arch.pending = make(chan []byte)
+	arch.pending = make(chan []byte, BATCH_SIZE)
 	arch.stop = make(chan bool)
 	cfg := nsq.NewConfig()
 	consumer, err := nsq.NewConsumer(TOPIC, CHANNEL, cfg)
@@ -66,22 +68,30 @@ func (arch *Archiver) archive_task() {
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM)
 	timer := time.After(REDO_ROTATE_INTERVAL)
+	sync_ticker := time.NewTicker(SYNC_INTERVAL)
 	db := arch.new_redolog()
 	key := make([]byte, 8)
 	for {
 		select {
-		case msg := <-arch.pending:
+		case <-sync_ticker.C:
+			n := len(arch.pending)
+			if n == 0 {
+				continue
+			}
+
 			db.Update(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte(BOLTDB_BUCKET))
-				id, err := b.NextSequence()
-				if err != nil {
-					log.Critical(err)
-					return err
-				}
-				binary.BigEndian.PutUint64(key, uint64(id))
-				if err = b.Put(key, msg); err != nil {
-					log.Critical(err)
-					return err
+				for i := 0; i < n; i++ {
+					id, err := b.NextSequence()
+					if err != nil {
+						log.Critical(err)
+						continue
+					}
+					binary.BigEndian.PutUint64(key, uint64(id))
+					if err = b.Put(key, <-arch.pending); err != nil {
+						log.Critical(err)
+						continue
+					}
 				}
 				return nil
 			})
