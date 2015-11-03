@@ -6,7 +6,6 @@ import (
 	"github.com/boltdb/bolt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
-	"gopkg.in/vmihailenco/msgpack.v2"
 	"time"
 )
 
@@ -14,7 +13,7 @@ import (
 type Change struct {
 	Collection string // collection
 	Field      string // field "a.b.c.d"
-	Doc        []byte // msgpack serialized data
+	Doc        interface{}
 }
 
 // a redo record represents complete transaction
@@ -59,7 +58,7 @@ func (t *ToolBox) cmd_show() {
 			return nil
 		}
 		r := &RedoRecord{}
-		err := msgpack.Unmarshal(bin, r)
+		err := bson.Unmarshal(bin, r)
 		if err != nil {
 			fmt.Println("data corrupted")
 			return nil
@@ -71,13 +70,7 @@ func (t *ToolBox) cmd_show() {
 		fmt.Println("CreatedAt:", time.Unix(ts/1000, 0))
 		for k := range r.Changes {
 			fmt.Printf("Change #%v Collection:%v Field:%v\n", k, r.Changes[k].Collection, r.Changes[k].Field)
-			raw := make(map[string]interface{})
-			err := bson.Unmarshal(r.Changes[k].Doc, &raw)
-			if err != nil {
-				fmt.Println(err)
-				continue
-			}
-			fmt.Printf("Doc %#v\n", raw)
+			fmt.Printf("\tDoc:%v\n", r.Changes[k].Doc)
 		}
 		return nil
 	})
@@ -167,7 +160,7 @@ func (t *ToolBox) cmd_replay() {
 				return nil
 			}
 			r := &RedoRecord{}
-			err := msgpack.Unmarshal(bin, r)
+			err := bson.Unmarshal(bin, r)
 			if err != nil {
 				fmt.Println("data corrupted")
 				return nil
@@ -190,16 +183,11 @@ func do_update(k []byte, r *RedoRecord, sess *mgo.Session) {
 	mdb := sess.DB("")
 	for k := range r.Changes {
 		fmt.Printf("Doing Update On Collection:%v Field:%v\n", r.Changes[k].Collection, r.Changes[k].Field)
-		raw := make(map[string]interface{})
-		err := bson.Unmarshal(r.Changes[k].Doc, &raw)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
+		var err error
 		if r.Changes[k].Field != "" {
-			_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, bson.M{"$set": bson.M{r.Changes[k].Field: raw}})
+			_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, bson.M{"$set": bson.M{r.Changes[k].Field: r.Changes[k].Doc}})
 		} else {
-			_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, raw)
+			_, err = mdb.C(r.Changes[k].Collection).Upsert(bson.M{"userid": r.UID}, r.Changes[k].Doc)
 		}
 		if err != nil {
 			fmt.Println(err)

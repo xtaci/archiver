@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/boltdb/bolt"
-	"gopkg.in/vmihailenco/msgpack.v2"
+	"gopkg.in/mgo.v2/bson"
 	"io"
 	"log"
 	"os"
@@ -132,7 +132,7 @@ func (t *ToolBox) init(dir string) {
 				TS  uint64
 			}
 			for k, v := c.First(); k != nil; k, v = c.Next() {
-				err := msgpack.Unmarshal(v, &meta)
+				err := bson.Unmarshal(v, &meta)
 				if err != nil {
 					log.Println(err)
 					continue
