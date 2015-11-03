@@ -107,19 +107,19 @@ func (t *ToolBox) cmd_duration() {
 func (t *ToolBox) cmd_sum() {
 	// count
 	count := 0
-	t.binded(func(i int) {
+	t.filter(func(i int) {
 		count++
 	})
 	fmt.Printf("total:%v\n", count)
 }
 
 func (t *ToolBox) cmd_ls() {
-	t.binded(func(i int) {
+	t.filter(func(i int) {
 		fmt.Printf("REC#%v userid%v\n", i, t.recs[i].userid)
 	})
 }
 
-func (t *ToolBox) binded(f func(i int)) {
+func (t *ToolBox) filter(f func(i int)) {
 	var ms_a, ms_b int64
 	if t.duration_set {
 		ms_a, ms_b = t.to_ms()
@@ -151,7 +151,7 @@ func (t *ToolBox) cmd_replay() {
 	}
 
 	key := make([]byte, 8)
-	t.binded(func(i int) {
+	t.filter(func(i int) {
 		rec := &t.recs[i]
 		t.dbs[rec.db_idx].View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(BOLTDB_BUCKET))
