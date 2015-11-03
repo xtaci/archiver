@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"github.com/boltdb/bolt"
+	"gopkg.in/vmihailenco/msgpack.v2"
 	"io"
 	"log"
 	"os"
@@ -25,7 +27,7 @@ const (
 	TK_NUM
 	TK_STRING
 	TK_SUM
-	TK_BIND
+	TK_USER
 	TK_DURATION
 	TK_EOF
 )
@@ -35,7 +37,7 @@ var cmds = map[string]int{
 	"help":  TK_HELP,
 	"clear": TK_CLEAR,
 
-	"bind":     TK_BIND,
+	"user":     TK_USER,
 	"sum":      TK_SUM,
 	"duration": TK_DURATION,
 	"ls":       TK_LS,
@@ -53,30 +55,38 @@ type token struct {
 var help = `REDO Replay Tool
 Commands:
 
-> p 		-- list all database files(sorted by time):
-> help		-- print this text
-> clear 	-- clear all bindings
-> p1		-- print summary of file#1(including users & num records)
+> help					-- print this text
+> clear 				-- clear all bindings
+> ls					-- list all elements
+> sum					-- count all elements
+> show 33				-- show detailed records with id 33
+> replay "mongodb://172.17.42.1/mydb"	-- replay all changes
 
 Bind Operations to user:
-> bind 1 1234		-- all operations below are binded to a file#1 & user#1234
+> user 1234		-- all operations below are binded to a user#1234
 > sum 			-- print number of records of the user
 > ls 			-- list all elements of the user
-> show 33		-- show detailed records with id 33
 > replay "mongodb://172.17.42.1/mydb"	-- replay all changes of the user
 
 Bind operations to duration:
 > duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"
 (all operations below are binded to this duration)
-> sum		-- print number of records of the user in this duration
-> ls 		-- show all elements of the user in this duration
-> replay "mongodb://172.17.42.1/mydb"	-- replay all changes of the user in this duration
+> sum		-- print number of records in this duration
+> ls 		-- show all elements in this duration
+> replay "mongodb://172.17.42.1/mydb"	-- replay all changes in this duration
 `
+
+type rec struct {
+	db_idx int    // file
+	key    uint64 // key of file
+	userid int32
+	ts     uint64
+}
 
 type ToolBox struct {
 	dbs          []*bolt.DB // all opened boltdb
-	fileid       int        // current selected db
 	userid       int        // current selected userid
+	recs         []rec
 	duration_a   time.Time
 	duration_b   time.Time
 	duration_set bool
@@ -112,6 +122,27 @@ func (t *ToolBox) init(dir string) {
 			continue
 		}
 		t.dbs = append(t.dbs, db)
+	}
+
+	// reindex all keys
+	for i := range t.dbs {
+		t.dbs[i].View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(BOLTDB_BUCKET))
+			c := b.Cursor()
+			var meta struct {
+				UID int32
+				TS  uint64
+			}
+			for k, v := c.First(); k != nil; k, v = c.Next() {
+				err := msgpack.Unmarshal(v, &meta)
+				if err != nil {
+					log.Println(err)
+					continue
+				}
+				t.recs = append(t.recs, rec{i, binary.BigEndian.Uint64(k), meta.UID, meta.TS})
+			}
+			return nil
+		})
 	}
 }
 
@@ -214,8 +245,8 @@ func (t *ToolBox) parse_exec(cmd string) {
 		t.cmd_clear()
 	case TK_DURATION:
 		t.cmd_duration()
-	case TK_BIND:
-		t.cmd_bind()
+	case TK_USER:
+		t.cmd_user()
 	case TK_SUM:
 		t.cmd_sum()
 	case TK_LS:

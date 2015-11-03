@@ -83,21 +83,17 @@ func (t *ToolBox) cmd_help() {
 }
 
 func (t *ToolBox) cmd_clear() {
-	t.fileid = -1
 	t.userid = -1
 	t.duration_set = false
 }
 
 func (t *ToolBox) cmd_show() {
-	if t.fileid == -1 {
-		fmt.Println("bind first")
-		return
-	}
 	recid_tk := t.match(TK_NUM)
-	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
+	rec := t.recs[recid_tk.num]
+	t.dbs[rec.db_idx].View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BOLTDB_BUCKET))
 		key := make([]byte, 8)
-		binary.BigEndian.PutUint64(key, uint64(recid_tk.num))
+		binary.BigEndian.PutUint64(key, uint64(rec.key))
 		bin := b.Get(key)
 		if bin == nil {
 			fmt.Println("no such record")
@@ -128,15 +124,9 @@ func (t *ToolBox) cmd_show() {
 	})
 }
 
-func (t *ToolBox) cmd_bind() {
-	fileid_tk := t.match(TK_NUM)
-	userid_tk := t.match(TK_NUM)
-	if fileid_tk.num < len(t.dbs) {
-		t.fileid = fileid_tk.num
-		t.userid = userid_tk.num
-		return
-	}
-	fmt.Println("no such file", fileid_tk.num)
+func (t *ToolBox) cmd_user() {
+	tk := t.match(TK_NUM)
+	t.userid = tk.num
 }
 
 func (t *ToolBox) cmd_duration() {
@@ -161,118 +151,75 @@ func (t *ToolBox) cmd_duration() {
 }
 
 func (t *ToolBox) cmd_sum() {
-	if t.fileid == -1 {
-		fmt.Println("bind first")
-		return
-	}
-
-	var ms_a, ms_b int64
-	if t.duration_set {
-		ms_a, ms_b = t.to_ms()
-	}
-
 	// count
 	count := 0
-	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(BOLTDB_BUCKET))
-		c := b.Cursor()
-		brief := &Brief{}
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			err := msgpack.Unmarshal(v, brief)
-			if err != nil {
-				fmt.Println("data corrupted, record-id:", k)
-				continue
-			}
-			if brief.UID == int32(t.userid) {
-				if !t.duration_set {
-					count++
-				} else { // parse snowflake-id
-					ms := int64(brief.TS >> 22)
-					if ms >= ms_a && ms <= ms_b {
-						count++
-					}
-				}
-			}
-		}
-		return nil
+	t.binded(func(i int) {
+		count++
 	})
-
 	fmt.Printf("total:%v\n", count)
 }
 
 func (t *ToolBox) cmd_ls() {
-	if t.fileid == -1 {
-		fmt.Println("bind first")
-		return
-	}
+	t.binded(func(i int) {
+		fmt.Println("REC#%v userid%v", i, t.recs[i].userid)
+	})
+}
+
+func (t *ToolBox) binded(f func(i int)) {
 	var ms_a, ms_b int64
 	if t.duration_set {
 		ms_a, ms_b = t.to_ms()
 	}
-	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(BOLTDB_BUCKET))
-		c := b.Cursor()
-		r := &Brief{}
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			err := msgpack.Unmarshal(v, r)
-			if err != nil {
-				fmt.Println("data corrupted, record-id:", k)
-				continue
-			}
-			key := binary.BigEndian.Uint64(k)
-			if r.UID == int32(t.userid) {
-				if !t.duration_set {
-					fmt.Printf("%v->%#v\n", key, r)
-				} else { // parse snowflake-id
-					ms := int64(r.TS >> 22)
-					if ms >= ms_a && ms <= ms_b {
-						fmt.Printf("%v->%#v\n", key, r)
-					}
-				}
+
+	for k := range t.recs {
+		ok := true
+		if t.duration_set {
+			ms := int64(t.recs[k].ts >> 22)
+			if ms < ms_a || ms > ms_b {
+				ok = false
 			}
 		}
-		return nil
-	})
+		if t.userid > 0 && t.recs[k].userid != int32(t.userid) {
+			ok = false
+		}
+		if ok {
+			f(k)
+		}
+	}
 }
 
 func (t *ToolBox) cmd_replay() {
-	if t.fileid == -1 {
-		fmt.Println("bind first")
-		return
-	}
 	mgo_tk := t.match(TK_STRING)
 	sess, err := mgo.Dial(mgo_tk.literal)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	var ms_a, ms_b int64
-	if t.duration_set {
-		ms_a, ms_b = t.to_ms()
-	}
-	t.dbs[t.fileid].View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(BOLTDB_BUCKET))
-		c := b.Cursor()
-		r := &RedoRecord{}
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			err := msgpack.Unmarshal(v, r)
+
+	key := make([]byte, 8)
+	t.binded(func(i int) {
+		rec := &t.recs[i]
+		t.dbs[rec.db_idx].View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(BOLTDB_BUCKET))
+			binary.BigEndian.PutUint64(key, uint64(rec.key))
+			bin := b.Get(key)
+			if bin == nil {
+				fmt.Println("no such record")
+				return nil
+			}
+			r := &RedoRecord{}
+			err := msgpack.Unmarshal(bin, r)
 			if err != nil {
-				fmt.Println("data corrupted, record-id:", k)
-				continue
+				fmt.Println("data corrupted")
+				return nil
 			}
-			if r.UID == int32(t.userid) {
-				if !t.duration_set {
-					do_update(k, r, sess)
-				} else { // parse snowflake-id
-					ms := int64(r.TS >> 22)
-					if ms >= ms_a && ms <= ms_b {
-						do_update(k, r, sess)
-					}
-				}
-			}
-		}
-		return nil
+
+			do_update(key, r, sess)
+			return nil
+		})
 	})
+
+	sess.Close()
 }
 
 func (t *ToolBox) to_ms() (int64, int64) {
