@@ -22,7 +22,7 @@ const (
 	TK_CLEAR
 	TK_HELP
 	TK_REPLAY
-	TK_SHOW
+	TK_P
 	TK_NUM
 	TK_STRING
 	TK_SUM
@@ -40,7 +40,7 @@ var cmds = map[string]int{
 	"duration": TK_DURATION,
 	"ls":       TK_LS,
 	"replay":   TK_REPLAY,
-	"show":     TK_SHOW,
+	"p":        TK_P,
 }
 
 type token struct {
@@ -57,7 +57,7 @@ Commands:
 > clear 				-- clear all bindings
 > ls					-- list all elements
 > sum					-- count all elements
-> show 33				-- show detailed records with id 33
+> p33					-- show detailed records with id 33
 > replay "mongodb://172.17.42.1/mydb"	-- replay all changes
 
 Bind Operations to user:
@@ -70,7 +70,7 @@ Bind operations to duration:
 > duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"
 (all operations below are binded to this duration)
 > sum		-- print number of records in this duration
-> ls 		-- show all elements in this duration
+> ls 		-- list all elements in this duration
 > replay "mongodb://172.17.42.1/mydb"	-- replay all changes in this duration
 `
 
@@ -251,8 +251,8 @@ func (t *ToolBox) parse_exec(cmd string) {
 		t.cmd_ls()
 	case TK_REPLAY:
 		t.cmd_replay()
-	case TK_SHOW:
-		t.cmd_show()
+	case TK_P:
+		t.cmd_p()
 	default:
 		fmt.Println("unkown command:", cmd)
 	}

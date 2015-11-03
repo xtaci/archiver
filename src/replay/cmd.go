@@ -45,7 +45,7 @@ func (t *ToolBox) cmd_clear() {
 	t.duration_set = false
 }
 
-func (t *ToolBox) cmd_show() {
+func (t *ToolBox) cmd_p() {
 	recid_tk := t.match(TK_NUM)
 	rec := t.recs[recid_tk.num]
 	t.dbs[rec.db_idx].View(func(tx *bolt.Tx) error {
