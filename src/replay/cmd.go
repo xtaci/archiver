@@ -37,47 +37,6 @@ const (
 	LAYOUT        = "2006-01-02T15:04:05"
 )
 
-func (t *ToolBox) cmd_p() {
-	tk := t.next()
-	if tk.typ == TK_NUM { // p with param
-		if tk.num >= len(t.dbs) {
-			fmt.Println("no such file", tk.num)
-			return
-		}
-		// stats
-		t.dbs[tk.num].View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(BOLTDB_BUCKET))
-			fmt.Printf("%#v\n", b.Stats())
-			return nil
-		})
-
-		// users
-		users := make(map[int32]int)
-		t.dbs[tk.num].View(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(BOLTDB_BUCKET))
-			c := b.Cursor()
-			brief := &Brief{}
-			for k, v := c.First(); k != nil; k, v = c.Next() {
-				err := msgpack.Unmarshal(v, brief)
-				if err != nil {
-					fmt.Println("data corrupted, record-id:", k)
-					continue
-				}
-				users[brief.UID]++
-			}
-			return nil
-		})
-		fmt.Println("users of this db:")
-		for userid, count := range users {
-			fmt.Println("id:", userid, "count:", count)
-		}
-	} else { // only p
-		for k, v := range t.dbs {
-			fmt.Printf("%v -- %v\n", k, v)
-		}
-	}
-}
-
 func (t *ToolBox) cmd_help() {
 	fmt.Println(help)
 }
@@ -161,7 +120,7 @@ func (t *ToolBox) cmd_sum() {
 
 func (t *ToolBox) cmd_ls() {
 	t.binded(func(i int) {
-		fmt.Println("REC#%v userid%v", i, t.recs[i].userid)
+		fmt.Printf("REC#%v userid%v\n", i, t.recs[i].userid)
 	})
 }
 

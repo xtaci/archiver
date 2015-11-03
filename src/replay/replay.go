@@ -18,7 +18,6 @@ import (
 
 const (
 	TK_UNDEFINED = iota
-	TK_P
 	TK_LS
 	TK_CLEAR
 	TK_HELP
@@ -33,7 +32,6 @@ const (
 )
 
 var cmds = map[string]int{
-	"p":     TK_P,
 	"help":  TK_HELP,
 	"clear": TK_CLEAR,
 
@@ -237,8 +235,6 @@ func (t *ToolBox) parse_exec(cmd string) {
 	t.cmd_reader = bytes.NewBufferString(cmd)
 	tk := t.next()
 	switch tk.typ {
-	case TK_P:
-		t.cmd_p()
 	case TK_HELP:
 		t.cmd_help()
 	case TK_CLEAR:
