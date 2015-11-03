@@ -7,9 +7,9 @@ import (
 )
 
 func main() {
+	fmt.Println(help)
 	tb := &ToolBox{}
 	tb.init("/data")
-	fmt.Println(help)
 	in := bufio.NewReader(os.Stdin)
 	for {
 		prompt(tb)

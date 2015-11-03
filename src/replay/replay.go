@@ -123,6 +123,7 @@ func (t *ToolBox) init(dir string) {
 	}
 
 	// reindex all keys
+	log.Println("loading database")
 	for i := range t.dbs {
 		t.dbs[i].View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(BOLTDB_BUCKET))
@@ -142,6 +143,7 @@ func (t *ToolBox) init(dir string) {
 			return nil
 		})
 	}
+	log.Println("ready")
 }
 
 //////////////////////////////////////////
