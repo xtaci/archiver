@@ -69,8 +69,10 @@ func (t *ToolBox) cmd_show() {
 		ts := int64(r.TS >> 22)
 		fmt.Println("CreatedAt:", time.Unix(ts/1000, 0))
 		for k := range r.Changes {
-			fmt.Printf("Change #%v Collection:%v Field:%v\n", k, r.Changes[k].Collection, r.Changes[k].Field)
-			fmt.Printf("\tDoc:%v\n", r.Changes[k].Doc)
+			fmt.Printf("\tChange #%v\n", k)
+			fmt.Printf("\tCollection:%v\n", r.Changes[k].Collection)
+			fmt.Printf("\tField:%v\n", r.Changes[k].Field)
+			fmt.Printf("\tDoc:%v\n\n", r.Changes[k].Doc)
 		}
 		return nil
 	})
