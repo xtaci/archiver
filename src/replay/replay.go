@@ -57,15 +57,15 @@ var help = `REDO Replay Tool
 Commands:
 
 > help					-- print this text
-> clear 				-- clear all bindings
 > ls					-- list all elements
 > sum					-- count all elements
 > p33					-- show detailed records with id 33
 > replay "mongodb://172.17.42.1/mydb"	-- replay all changes
 
-> user 1234		-- filter user#1234
-> duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"  -- filter this duration
-> api "user_login_req"	-- filter api
+> user 1234						-- filter user#1234
+> duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"	-- filter this duration
+> api "user_login_req"					-- filter api
+> clear 						-- clear filter
 `
 
 type rec struct {
@@ -81,6 +81,7 @@ type ToolBox struct {
 	userid       int        // current selected userid
 	recs         []rec
 	api          uint64
+	api_txt      string
 	duration_a   time.Time
 	duration_b   time.Time
 	duration_set bool

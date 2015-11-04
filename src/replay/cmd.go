@@ -90,6 +90,7 @@ func (t *ToolBox) cmd_api() {
 	h := fnv.New64a()
 	h.Write([]byte(tk.literal))
 	t.api = h.Sum64()
+	t.api_txt = tk.literal
 }
 
 func (t *ToolBox) cmd_duration() {

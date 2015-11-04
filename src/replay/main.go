@@ -24,6 +24,9 @@ func main() {
 
 func prompt(tb *ToolBox) {
 	var ps string
+	if tb.api_txt != "" {
+		ps += fmt.Sprintf("\033[0;31mapi(%v)\033[0m", tb.api_txt)
+	}
 	if tb.userid != -1 {
 		ps += fmt.Sprintf("\033[0;32mid(%v)\033[0m", tb.userid)
 	}
