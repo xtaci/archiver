@@ -6,6 +6,7 @@ import (
 	"github.com/boltdb/bolt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
+	"hash/fnv"
 	"time"
 )
 
@@ -43,6 +44,7 @@ func (t *ToolBox) cmd_help() {
 func (t *ToolBox) cmd_clear() {
 	t.userid = -1
 	t.duration_set = false
+	t.api = 0
 }
 
 func (t *ToolBox) cmd_p() {
@@ -81,6 +83,13 @@ func (t *ToolBox) cmd_p() {
 func (t *ToolBox) cmd_user() {
 	tk := t.match(TK_NUM)
 	t.userid = tk.num
+}
+
+func (t *ToolBox) cmd_api() {
+	tk := t.match(TK_STRING)
+	h := fnv.New64a()
+	h.Write([]byte(tk.literal))
+	t.api = h.Sum64()
 }
 
 func (t *ToolBox) cmd_duration() {
@@ -134,6 +143,10 @@ func (t *ToolBox) filter(f func(i int)) {
 			}
 		}
 		if t.userid > 0 && t.recs[k].userid != int32(t.userid) {
+			ok = false
+		}
+
+		if t.api != 0 && t.recs[k].api != t.api {
 			ok = false
 		}
 		if ok {

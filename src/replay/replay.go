@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/boltdb/bolt"
 	"gopkg.in/mgo.v2/bson"
+	"hash/fnv"
 	"io"
 	"log"
 	"os"
@@ -23,6 +24,7 @@ const (
 	TK_HELP
 	TK_REPLAY
 	TK_P
+	TK_API
 	TK_NUM
 	TK_STRING
 	TK_SUM
@@ -35,6 +37,7 @@ var cmds = map[string]int{
 	"help":  TK_HELP,
 	"clear": TK_CLEAR,
 
+	"api":      TK_API,
 	"user":     TK_USER,
 	"sum":      TK_SUM,
 	"duration": TK_DURATION,
@@ -60,18 +63,9 @@ Commands:
 > p33					-- show detailed records with id 33
 > replay "mongodb://172.17.42.1/mydb"	-- replay all changes
 
-Bind Operations to user:
-> user 1234		-- all operations below are binded to a user#1234
-> sum 			-- print number of records of the user
-> ls 			-- list all elements of the user
-> replay "mongodb://172.17.42.1/mydb"	-- replay all changes of the user
-
-Bind operations to duration:
-> duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"
-(all operations below are binded to this duration)
-> sum		-- print number of records in this duration
-> ls 		-- list all elements in this duration
-> replay "mongodb://172.17.42.1/mydb"	-- replay all changes in this duration
+> user 1234		-- filter user#1234
+> duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"  -- filter this duration
+> api "user_login_req"	-- filter api
 `
 
 type rec struct {
@@ -79,12 +73,14 @@ type rec struct {
 	key    uint64 // key of file
 	userid int32
 	ts     uint64
+	api    uint64 // hashed api
 }
 
 type ToolBox struct {
 	dbs          []*bolt.DB // all opened boltdb
 	userid       int        // current selected userid
 	recs         []rec
+	api          uint64
 	duration_a   time.Time
 	duration_b   time.Time
 	duration_set bool
@@ -124,6 +120,7 @@ func (t *ToolBox) init(dir string) {
 
 	// reindex all keys
 	log.Println("loading database")
+	h := fnv.New64a()
 	for i := range t.dbs {
 		t.dbs[i].View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(BOLTDB_BUCKET))
@@ -131,6 +128,7 @@ func (t *ToolBox) init(dir string) {
 			var meta struct {
 				UID int32
 				TS  uint64
+				API string
 			}
 			for k, v := c.First(); k != nil; k, v = c.Next() {
 				err := bson.Unmarshal(v, &meta)
@@ -138,7 +136,9 @@ func (t *ToolBox) init(dir string) {
 					log.Println(err)
 					continue
 				}
-				t.recs = append(t.recs, rec{i, binary.BigEndian.Uint64(k), meta.UID, meta.TS})
+				h.Reset()
+				h.Write([]byte(meta.API))
+				t.recs = append(t.recs, rec{i, binary.BigEndian.Uint64(k), meta.UID, meta.TS, h.Sum64()})
 			}
 			return nil
 		})
@@ -253,6 +253,8 @@ func (t *ToolBox) parse_exec(cmd string) {
 		t.cmd_replay()
 	case TK_P:
 		t.cmd_p()
+	case TK_API:
+		t.cmd_api()
 	default:
 		fmt.Println("unkown command:", cmd)
 	}
