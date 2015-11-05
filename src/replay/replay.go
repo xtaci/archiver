@@ -1,92 +1,30 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
-	"fmt"
 	"github.com/boltdb/bolt"
-	"gopkg.in/mgo.v2/bson"
-	"hash/fnv"
-	"io"
+	"github.com/yuin/gopher-lua"
 	"log"
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"time"
-	"unicode"
 )
 
 const (
-	TK_UNDEFINED = iota
-	TK_LS
-	TK_CLEAR
-	TK_HELP
-	TK_REPLAY
-	TK_P
-	TK_API
-	TK_NUM
-	TK_STRING
-	TK_SUM
-	TK_USER
-	TK_DURATION
-	TK_EOF
+	BOLTDB_BUCKET = "REDOLOG"
+	LAYOUT        = "2006-01-02T15:04:05"
 )
-
-var cmds = map[string]int{
-	"help":  TK_HELP,
-	"clear": TK_CLEAR,
-
-	"api":      TK_API,
-	"user":     TK_USER,
-	"sum":      TK_SUM,
-	"duration": TK_DURATION,
-	"ls":       TK_LS,
-	"replay":   TK_REPLAY,
-	"p":        TK_P,
-}
-
-type token struct {
-	typ     int
-	literal string
-	num     int
-}
-
-// set ts=8
-var help = `REDO Replay Tool
-Commands:
-
-> help					-- print this text
-> ls					-- list all elements
-> sum					-- count all elements
-> p33					-- show detailed records with id 33
-> replay "mongodb://172.17.42.1/mydb"	-- replay all changes
-
-> user 1234						-- filter user#1234
-> duration "2015-10-28T14:53:27"  "2015-10-29T14:53:27"	-- filter this duration
-> api "user_login_req"					-- filter api
-> clear 						-- clear filter
-`
 
 type rec struct {
 	db_idx int    // file
 	key    uint64 // key of file
-	userid int32
-	ts     uint64
-	api    uint64 // hashed api
 }
 
 type ToolBox struct {
-	dbs          []*bolt.DB // all opened boltdb
-	userid       int        // current selected userid
-	recs         []rec
-	api          uint64
-	api_txt      string
-	duration_a   time.Time
-	duration_b   time.Time
-	duration_set bool
-	mgo_url      string
-	cmd_reader   *bytes.Buffer // cmds
+	L    *lua.LState // the lua virtual machine
+	dbs  []*bolt.DB  // all opened boltdb
+	recs []rec
 }
 
 type file_sort []string
@@ -101,7 +39,7 @@ func (a file_sort) Less(i, j int) bool {
 }
 
 func (t *ToolBox) init(dir string) {
-	t.cmd_clear()
+	//
 	files, err := filepath.Glob(dir + "/*.RDO")
 	if err != nil {
 		log.Println(err)
@@ -121,142 +59,40 @@ func (t *ToolBox) init(dir string) {
 
 	// reindex all keys
 	log.Println("loading database")
-	h := fnv.New64a()
 	for i := range t.dbs {
 		t.dbs[i].View(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(BOLTDB_BUCKET))
 			c := b.Cursor()
-			var meta struct {
-				UID int32
-				TS  uint64
-				API string
-			}
-			for k, v := c.First(); k != nil; k, v = c.Next() {
-				err := bson.Unmarshal(v, &meta)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				h.Reset()
-				h.Write([]byte(meta.API))
-				t.recs = append(t.recs, rec{i, binary.BigEndian.Uint64(k), meta.UID, meta.TS, h.Sum64()})
+			for k, _ := c.First(); k != nil; k, _ = c.Next() {
+				t.recs = append(t.recs, rec{i, binary.BigEndian.Uint64(k)})
 			}
 			return nil
 		})
 	}
+
+	// init lua machine
+	log.Println("init lua machine")
+	t.L = lua.NewState()
+	// register
+	t.register()
 	log.Println("ready")
 }
 
-//////////////////////////////////////////
-// parser
-func (t *ToolBox) next() *token {
-	var r rune
-	var err error
-	for {
-		r, _, err = t.cmd_reader.ReadRune()
-		if err == io.EOF {
-			return &token{typ: TK_EOF}
-		} else if unicode.IsSpace(r) {
-			continue
-		}
-		break
-	}
+func (t *ToolBox) register() {
+	mt := t.L.NewTypeMetatable("mt_reclist")
+	t.L.SetGlobal("mt_reclist", mt)
+	t.L.SetField(mt, "__index", t.L.SetFuncs(t.L.NewTable(), map[string]lua.LGFunction{
+		"get": t.builtin_get,
+	}))
 
-	if unicode.IsLetter(r) {
-		var runes []rune
-		for {
-			runes = append(runes, r)
-			r, _, err = t.cmd_reader.ReadRune()
-			if err == io.EOF {
-				break
-			} else if unicode.IsLetter(r) {
-				continue
-			} else {
-				t.cmd_reader.UnreadRune()
-				break
-			}
-		}
-
-		t := &token{}
-		t.literal = string(runes)
-		t.typ = cmds[t.literal]
-		return t
-	} else if r == '"' { // quoted string
-		var runes []rune
-		for {
-			r, _, err = t.cmd_reader.ReadRune()
-			if err == io.EOF {
-				break
-			} else if r != '"' { // read until '"'
-				runes = append(runes, r)
-				continue
-			} else {
-				break
-			}
-		}
-		t := &token{}
-		t.literal = string(runes)
-		t.typ = TK_STRING
-		return t
-	} else if unicode.IsDigit(r) {
-		var runes []rune
-		for {
-			runes = append(runes, r)
-			r, _, err = t.cmd_reader.ReadRune()
-			if err == io.EOF {
-				break
-			} else if unicode.IsDigit(r) {
-				continue
-			} else {
-				t.cmd_reader.UnreadRune()
-				break
-			}
-		}
-
-		t := &token{}
-		t.num, _ = strconv.Atoi(string(runes))
-		t.typ = TK_NUM
-		return t
-	}
-	return &token{}
-}
-
-func (t *ToolBox) match(typ int) *token {
-	tk := t.next()
-	if tk.typ != typ {
-		panic("syntax error")
-	}
-	return tk
+	ud := t.L.NewUserData()
+	ud.Value = t.recs
+	t.L.SetGlobal("reclist", ud)
+	t.L.SetMetatable(ud, t.L.GetTypeMetatable("mt_reclist"))
 }
 
 func (t *ToolBox) parse_exec(cmd string) {
-	defer func() {
-		if x := recover(); x != nil {
-			fmt.Println(x, cmd)
-		}
-	}()
-	t.cmd_reader = bytes.NewBufferString(cmd)
-	tk := t.next()
-	switch tk.typ {
-	case TK_HELP:
-		t.cmd_help()
-	case TK_CLEAR:
-		t.cmd_clear()
-	case TK_DURATION:
-		t.cmd_duration()
-	case TK_USER:
-		t.cmd_user()
-	case TK_SUM:
-		t.cmd_sum()
-	case TK_LS:
-		t.cmd_ls()
-	case TK_REPLAY:
-		t.cmd_replay()
-	case TK_P:
-		t.cmd_p()
-	case TK_API:
-		t.cmd_api()
-	default:
-		fmt.Println("unkown command:", cmd)
+	if err := t.L.DoString(cmd); err != nil {
+		log.Println(err)
 	}
 }

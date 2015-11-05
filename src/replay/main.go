@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-	fmt.Println(help)
 	tb := &ToolBox{}
 	tb.init("/data")
 	in := bufio.NewReader(os.Stdin)
@@ -24,15 +23,6 @@ func main() {
 
 func prompt(tb *ToolBox) {
 	var ps string
-	if tb.api_txt != "" {
-		ps += fmt.Sprintf("\033[0;31mapi(%v)\033[0m", tb.api_txt)
-	}
-	if tb.userid != -1 {
-		ps += fmt.Sprintf("\033[0;32mid(%v)\033[0m", tb.userid)
-	}
-	if tb.duration_set {
-		ps += fmt.Sprintf("\033[1m(%v -- %v)\033[0m", tb.duration_a, tb.duration_b)
-	}
 	ps += "> "
 	fmt.Print(ps)
 }
