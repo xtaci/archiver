@@ -82,7 +82,8 @@ func (t *ToolBox) register() {
 	mt := t.L.NewTypeMetatable("mt_reclist")
 	t.L.SetGlobal("mt_reclist", mt)
 	t.L.SetField(mt, "__index", t.L.SetFuncs(t.L.NewTable(), map[string]lua.LGFunction{
-		"get": t.builtin_get,
+		"get":    t.builtin_get,
+		"length": t.builtin_length,
 	}))
 
 	ud := t.L.NewUserData()

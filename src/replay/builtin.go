@@ -18,6 +18,7 @@ type Change struct {
 
 // a redo record represents complete transaction
 type RedoRecord struct {
+	Id      int      // records index
 	API     string   // the api name
 	UID     int32    // userid
 	TS      uint64   // timestamp should get from snowflake
@@ -31,7 +32,7 @@ func (t *ToolBox) builtin_get(L *lua.LState) int {
 			idx := L.CheckInt(2) - 1
 			if idx < len(v)-1 {
 				elem := v[idx]
-				L.Push(t.read(elem.db_idx, elem.key))
+				L.Push(t.read(idx, elem.db_idx, elem.key))
 				return 1
 			} else {
 			}
@@ -39,8 +40,16 @@ func (t *ToolBox) builtin_get(L *lua.LState) int {
 	}
 	return 0
 }
+func (t *ToolBox) builtin_length(L *lua.LState) int {
+	ud := L.CheckUserData(1)
+	if v, ok := ud.Value.([]rec); ok {
+		L.Push(lua.LNumber(len(v)))
+		return 1
+	}
+	return 0
+}
 
-func (t *ToolBox) read(db_idx int, key uint64) lua.LString {
+func (t *ToolBox) read(idx int, db_idx int, key uint64) lua.LString {
 	r := &RedoRecord{}
 	t.dbs[db_idx].View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BOLTDB_BUCKET))
@@ -58,7 +67,7 @@ func (t *ToolBox) read(db_idx int, key uint64) lua.LString {
 		}
 		return nil
 	})
-
+	r.Id = idx
 	if bin, err := json.Marshal(r); err == nil {
 		return lua.LString(bin)
 	} else {
