@@ -80,6 +80,8 @@ func (t *ToolBox) init(dir string) {
 	// register
 	t.register()
 	log.Println("ready")
+
+	t.L.DoString("help()")
 }
 
 func (t *ToolBox) register() {
@@ -92,10 +94,14 @@ func (t *ToolBox) register() {
 		"replay": t.builtin_replay,
 	}))
 
+	// global variable
 	ud := t.L.NewUserData()
 	ud.Value = t.recs
-	t.L.SetGlobal("reclist", ud)
+	t.L.SetGlobal("redo", ud)
 	t.L.SetMetatable(ud, t.L.GetTypeMetatable("mt_reclist"))
+
+	// global function
+	t.L.SetGlobal("help", t.L.NewFunction(t.builtin_help))
 }
 
 func (t *ToolBox) exec(cmd string) {

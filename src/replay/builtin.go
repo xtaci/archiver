@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/boltdb/bolt"
 	"github.com/yuin/gopher-lua"
 	"gopkg.in/mgo.v2"
@@ -20,11 +21,24 @@ type Change struct {
 
 // a redo record represents complete transaction
 type RedoRecord struct {
-	Id      int      // records index
 	API     string   // the api name
 	UID     int32    // userid
 	TS      uint64   // timestamp should get from snowflake
 	Changes []Change // changes
+}
+
+func (t *ToolBox) builtin_help(L *lua.LState) int {
+	fmt.Println(`
+	REDO Replay Tool
+	Commands:
+
+	> help()                                    -- print this text
+	> print(redo:length())                      -- print redolog length
+	> print(redo:get(1))                        -- print a document
+	> redo:mgo("mongodb://172.17.42.1/mydb")    -- attach to mongodb
+	> redo:replay(1)                            -- replay redolog#1
+	`)
+	return 0
 }
 
 func (t *ToolBox) builtin_get(L *lua.LState) int {
@@ -35,7 +49,6 @@ func (t *ToolBox) builtin_get(L *lua.LState) int {
 			if idx >= 0 && idx < len(v) {
 				elem := v[idx]
 				r := t.read(idx, elem.db_idx, elem.key)
-				r.Id = idx
 				bin, _ := json.MarshalIndent(r, "", "\t")
 				L.Push(lua.LString(bin))
 				return 1
@@ -109,7 +122,7 @@ func (t *ToolBox) builtin_replay(L *lua.LState) int {
 }
 
 func (t *ToolBox) read(idx int, db_idx int, key uint64) *RedoRecord {
-	r := &RedoRecord{}
+	var r *RedoRecord
 	err := t.dbs[db_idx].View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BOLTDB_BUCKET))
 		k := make([]byte, 8)
@@ -118,6 +131,7 @@ func (t *ToolBox) read(idx int, db_idx int, key uint64) *RedoRecord {
 		if bin == nil {
 			return errors.New("record not found")
 		}
+		r = new(RedoRecord)
 		err := bson.Unmarshal(bin, r)
 		if err != nil {
 			return err
