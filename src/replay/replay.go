@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/binary"
+	"fmt"
 	"github.com/boltdb/bolt"
 	"github.com/yuin/gopher-lua"
+	"gopkg.in/mgo.v2"
 	"log"
 	"os"
 	"path/filepath"
@@ -22,9 +24,11 @@ type rec struct {
 }
 
 type ToolBox struct {
-	L    *lua.LState // the lua virtual machine
-	dbs  []*bolt.DB  // all opened boltdb
-	recs []rec
+	L       *lua.LState // the lua virtual machine
+	dbs     []*bolt.DB  // all opened boltdb
+	recs    []rec
+	mgo     *mgo.Session
+	mgo_url string
 }
 
 type file_sort []string
@@ -84,6 +88,8 @@ func (t *ToolBox) register() {
 	t.L.SetField(mt, "__index", t.L.SetFuncs(t.L.NewTable(), map[string]lua.LGFunction{
 		"get":    t.builtin_get,
 		"length": t.builtin_length,
+		"mgo":    t.builtin_mgo,
+		"replay": t.builtin_replay,
 	}))
 
 	ud := t.L.NewUserData()
@@ -93,5 +99,7 @@ func (t *ToolBox) register() {
 }
 
 func (t *ToolBox) exec(cmd string) {
-	t.L.DoString(cmd)
+	if err := t.L.DoString(cmd); err != nil {
+		fmt.Println(err)
+	}
 }
