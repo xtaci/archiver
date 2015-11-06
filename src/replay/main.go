@@ -1,29 +1,32 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
 	"github.com/yuin/gopher-lua"
-	"os"
+	"gopkg.in/readline.v1"
 	"strings"
 )
 
 type REPL struct {
 	L       *lua.LState // the lua virtual machine
-	in      *bufio.Reader
 	toolbox *ToolBox
+	rl      *readline.Instance
 }
 
 func (repl *REPL) init() {
 	repl.L = lua.NewState()
 	repl.toolbox = &ToolBox{}
 	repl.toolbox.init("/data")
-	repl.in = bufio.NewReader(os.Stdin)
+	rl, err := readline.New("> ")
+	if err != nil {
+		panic(err)
+	}
+	repl.rl = rl
 }
 
 func (repl *REPL) doREPL() {
 	for {
 		str, ok := repl.loadline()
+		repl.rl.SetPrompt("> ")
 		if !ok {
 			break
 		}
@@ -39,8 +42,7 @@ func incomplete(err error) bool {
 }
 
 func (repl *REPL) loadline() (string, bool) {
-	fmt.Print("> ")
-	line, err := repl.in.ReadString('\n')
+	line, err := repl.rl.Readline()
 	if err != nil {
 		return "", false
 	}
@@ -54,9 +56,9 @@ func (repl *REPL) loadline() (string, bool) {
 }
 
 func (repl *REPL) multiline(ml string) (string, bool) {
+	repl.rl.SetPrompt(">> ")
 	for {
-		fmt.Print(">> ")
-		line, err := repl.in.ReadString('\n')
+		line, err := repl.rl.Readline()
 		if err != nil {
 			return "", false
 		}
