@@ -6,6 +6,11 @@ import (
 	"strings"
 )
 
+const (
+	PS1 = "\033[1;31m> \033[0m"
+	PS2 = "\033[1;31m>> \033[0m"
+)
+
 type REPL struct {
 	L       *lua.LState // the lua virtual machine
 	toolbox *ToolBox
@@ -16,7 +21,7 @@ func (repl *REPL) init() {
 	repl.L = lua.NewState()
 	repl.toolbox = &ToolBox{}
 	repl.toolbox.init("/data")
-	rl, err := readline.New("> ")
+	rl, err := readline.New(PS1)
 	if err != nil {
 		panic(err)
 	}
@@ -26,7 +31,7 @@ func (repl *REPL) init() {
 func (repl *REPL) doREPL() {
 	for {
 		str, ok := repl.loadline()
-		repl.rl.SetPrompt("> ")
+		repl.rl.SetPrompt(PS1)
 		if !ok {
 			break
 		}
@@ -60,7 +65,7 @@ func (repl *REPL) loadline() (string, bool) {
 }
 
 func (repl *REPL) multiline(ml string) (string, bool) {
-	repl.rl.SetPrompt(">> ")
+	repl.rl.SetPrompt(PS2)
 	for {
 		line, err := repl.rl.Readline()
 		if err != nil {
