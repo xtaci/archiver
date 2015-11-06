@@ -34,6 +34,10 @@ func (repl *REPL) doREPL() {
 	}
 }
 
+func (repl *REPL) dtor() {
+	repl.rl.Close()
+}
+
 func incomplete(err error) bool {
 	if strings.Index(err.Error(), "EOF") != -1 {
 		return true
@@ -77,4 +81,5 @@ func main() {
 	repl := &REPL{}
 	repl.init()
 	repl.doREPL()
+	repl.dtor()
 }
