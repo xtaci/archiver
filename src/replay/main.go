@@ -12,7 +12,6 @@ type REPL struct {
 	L       *lua.LState // the lua virtual machine
 	in      *bufio.Reader
 	toolbox *ToolBox
-	linebuf string
 }
 
 func (repl *REPL) init() {
@@ -47,32 +46,29 @@ func (repl *REPL) loadline() (string, bool) {
 	}
 	// try add return
 	_, err = repl.L.LoadString("return " + line)
+	fmt.Println(err)
 	if err == nil { // syntax ok
 		return line, true
-	} else {
-		if incomplete(err) { // non-terminated, try multiline
-			repl.linebuf = repl.linebuf + "\n" + line
-			return repl.multiline()
-		} else { // syntax error
-			return line, true
-		}
+	} else { // syntax error
+		return repl.multiline(line)
 	}
 }
 
-func (repl *REPL) multiline() (string, bool) {
+func (repl *REPL) multiline(ml string) (string, bool) {
 	for {
 		fmt.Print(">> ")
 		line, err := repl.in.ReadString('\n')
 		if err != nil {
 			return "", false
 		}
-		repl.linebuf = repl.linebuf + "\n" + line
+		ml = ml + "\n" + line
 
-		_, err = repl.L.LoadString(repl.linebuf)
+		_, err = repl.L.LoadString(ml)
+		fmt.Println("error:", err)
 		if err == nil { // syntax ok
-			return repl.linebuf, true
+			return ml, true
 		} else if !incomplete(err) { // syntax error
-			return repl.linebuf, true
+			return ml, true
 		}
 	}
 }
