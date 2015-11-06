@@ -46,7 +46,6 @@ func (repl *REPL) loadline() (string, bool) {
 	}
 	// try add return
 	_, err = repl.L.LoadString("return " + line)
-	fmt.Println(err)
 	if err == nil { // syntax ok
 		return line, true
 	} else { // syntax error
@@ -64,7 +63,6 @@ func (repl *REPL) multiline(ml string) (string, bool) {
 		ml = ml + "\n" + line
 
 		_, err = repl.L.LoadString(ml)
-		fmt.Println("error:", err)
 		if err == nil { // syntax ok
 			return ml, true
 		} else if !incomplete(err) { // syntax error
