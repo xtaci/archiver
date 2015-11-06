@@ -30,11 +30,13 @@ func (t *ToolBox) builtin_get(L *lua.LState) int {
 	if v, ok := ud.Value.([]rec); ok {
 		if L.GetTop() == 2 {
 			idx := L.CheckInt(2) - 1
-			if idx < len(v)-1 {
+			if idx >= 0 && idx < len(v) {
 				elem := v[idx]
 				L.Push(t.read(idx, elem.db_idx, elem.key))
 				return 1
 			} else {
+				L.ArgError(1, "index out of range")
+				return 0
 			}
 		}
 	}
@@ -68,7 +70,7 @@ func (t *ToolBox) read(idx int, db_idx int, key uint64) lua.LString {
 		return nil
 	})
 	r.Id = idx
-	if bin, err := json.Marshal(r); err == nil {
+	if bin, err := json.MarshalIndent(r, "", "\t"); err == nil {
 		return lua.LString(bin)
 	} else {
 		log.Println(err)

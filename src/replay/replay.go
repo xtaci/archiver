@@ -92,8 +92,6 @@ func (t *ToolBox) register() {
 	t.L.SetMetatable(ud, t.L.GetTypeMetatable("mt_reclist"))
 }
 
-func (t *ToolBox) parse_exec(cmd string) {
-	if err := t.L.DoString(cmd); err != nil {
-		log.Println(err)
-	}
+func (t *ToolBox) exec(cmd string) {
+	t.L.DoString(cmd)
 }
