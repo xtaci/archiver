@@ -7,7 +7,6 @@ import (
 	"github.com/yuin/gopher-lua"
 	"gopkg.in/mgo.v2"
 	"log"
-	"os"
 	"path/filepath"
 	"sort"
 	"time"
@@ -42,16 +41,18 @@ func (a file_sort) Less(i, j int) bool {
 	return tm_a.Unix() < tm_b.Unix()
 }
 
-func (t *ToolBox) init(dir string) {
-	//
+func NewToolBox(dir string) *ToolBox {
+	t := new(ToolBox)
+	// lookup *.RDO
 	files, err := filepath.Glob(dir + "/*.RDO")
 	if err != nil {
 		log.Println(err)
-		os.Exit(-1)
+		return nil
 	}
 	// sort by creation time
 	sort.Sort(file_sort(files))
 
+	// open all db
 	for _, file := range files {
 		db, err := bolt.Open(file, 0600, &bolt.Options{Timeout: 2 * time.Second, ReadOnly: true})
 		if err != nil {
@@ -82,6 +83,7 @@ func (t *ToolBox) init(dir string) {
 	log.Println("ready")
 
 	t.L.DoString("help()")
+	return t
 }
 
 func (t *ToolBox) register() {

@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/yuin/gopher-lua"
 	"gopkg.in/readline.v1"
+	"log"
 	"strings"
 )
 
@@ -17,25 +18,32 @@ type REPL struct {
 	rl      *readline.Instance
 }
 
-func (repl *REPL) init() {
+func NewREPL() *REPL {
+	repl := new(REPL)
 	repl.L = lua.NewState()
-	repl.toolbox = &ToolBox{}
-	repl.toolbox.init("/data")
-	rl, err := readline.New(PS1)
-	if err != nil {
-		panic(err)
+	repl.toolbox = NewToolBox("/data")
+	if rl, err := readline.New(PS1); err == nil {
+		repl.rl = rl
+	} else {
+		log.Println(err)
+		return nil
 	}
-	repl.rl = rl
+	return repl
 }
 
-func (repl *REPL) doREPL() {
+// read/eval/print/loop
+func (repl *REPL) start() {
+	defer func() {
+		repl.rl.Close()
+	}()
+
 	for {
-		str, ok := repl.loadline()
-		repl.rl.SetPrompt(PS1)
-		if !ok {
+		if str, err := repl.loadline(); err == nil {
+			repl.toolbox.exec(str)
+		} else {
+			log.Println(err)
 			break
 		}
-		repl.toolbox.exec(str)
 	}
 }
 
@@ -46,39 +54,37 @@ func incomplete(err error) bool {
 	return false
 }
 
-func (repl *REPL) loadline() (string, bool) {
-	line, err := repl.rl.Readline()
-	if err != nil {
-		return "", false
-	}
-	// try add return
-	if _, err = repl.L.LoadString("return " + line); err == nil { // syntax ok
-		return line, true
-	} else { // syntax error
-		return repl.multiline(line)
+func (repl *REPL) loadline() (string, error) {
+	repl.rl.SetPrompt(PS1)
+	if line, err := repl.rl.Readline(); err == nil {
+		if _, err := repl.L.LoadString("return " + line); err == nil { // try add return <...> then compile
+			return line, nil
+		} else {
+			return repl.multiline(line)
+		}
+	} else {
+		return "", err
 	}
 }
 
-func (repl *REPL) multiline(ml string) (string, bool) {
+func (repl *REPL) multiline(ml string) (string, error) {
 	for {
-		// try it
-		if _, err := repl.L.LoadString(ml); err == nil { // syntax ok
-			return ml, true
-		} else if !incomplete(err) { // syntax error
-			return ml, true
+		if _, err := repl.L.LoadString(ml); err == nil { // try compile
+			return ml, nil
+		} else if !incomplete(err) { // syntax error, but not EOF
+			return ml, nil
+		} else { // read next line
+			repl.rl.SetPrompt(PS2)
+			if line, err := repl.rl.Readline(); err == nil {
+				ml = ml + "\n" + line
+			} else {
+				return "", err
+			}
 		}
-
-		repl.rl.SetPrompt(PS2)
-		line, err := repl.rl.Readline()
-		if err != nil {
-			return "", false
-		}
-		ml = ml + "\n" + line
 	}
 }
 
 func main() {
-	repl := &REPL{}
-	repl.init()
-	repl.doREPL()
+	repl := NewREPL()
+	repl.start()
 }
