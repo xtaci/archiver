@@ -15,34 +15,36 @@ const (
 type REPL struct {
 	L       *lua.LState // the lua virtual machine
 	toolbox *ToolBox
-	rl      *readline.Instance
+	reader  *readline.Instance
 }
 
 func NewREPL() *REPL {
-	repl := new(REPL)
-	repl.L = lua.NewState()
-	repl.toolbox = NewToolBox("/data")
-	if rl, err := readline.New(PS1); err == nil {
-		repl.rl = rl
+	r := new(REPL)
+	r.L = lua.NewState()
+	r.toolbox = NewToolBox("/data")
+	if reader, err := readline.New(PS1); err == nil {
+		r.reader = reader
 	} else {
 		log.Println(err)
 		return nil
 	}
-	return repl
+	return r
 }
 
-func (repl *REPL) Close() {
-	repl.rl.Close()
+func (r *REPL) Close() {
+	r.toolbox.Close()
+	r.reader.Close()
+	r.L.Close()
 }
 
 // read/eval/print/loop
-func (repl *REPL) Start() {
+func (r *REPL) Start() {
 	for {
-		if str, err := repl.loadline(); err == nil {
-			repl.toolbox.exec(str)
+		if str, err := r.loadline(); err == nil {
+			r.toolbox.exec(str)
 		} else {
 			log.Println(err)
-			break
+			return
 		}
 	}
 }
@@ -54,28 +56,28 @@ func incomplete(err error) bool {
 	return false
 }
 
-func (repl *REPL) loadline() (string, error) {
-	repl.rl.SetPrompt(PS1)
-	if line, err := repl.rl.Readline(); err == nil {
-		if _, err := repl.L.LoadString("return " + line); err == nil { // try add return <...> then compile
+func (r *REPL) loadline() (string, error) {
+	r.reader.SetPrompt(PS1)
+	if line, err := r.reader.Readline(); err == nil {
+		if _, err := r.L.LoadString("return " + line); err == nil { // try add return <...> then compile
 			return line, nil
 		} else {
-			return repl.multiline(line)
+			return r.multiline(line)
 		}
 	} else {
 		return "", err
 	}
 }
 
-func (repl *REPL) multiline(ml string) (string, error) {
+func (r *REPL) multiline(ml string) (string, error) {
 	for {
-		if _, err := repl.L.LoadString(ml); err == nil { // try compile
+		if _, err := r.L.LoadString(ml); err == nil { // try compile
 			return ml, nil
 		} else if !incomplete(err) { // syntax error, but not EOF
 			return ml, nil
 		} else { // read next line
-			repl.rl.SetPrompt(PS2)
-			if line, err := repl.rl.Readline(); err == nil {
+			r.reader.SetPrompt(PS2)
+			if line, err := r.reader.Readline(); err == nil {
 				ml = ml + "\n" + line
 			} else {
 				return "", err
@@ -85,7 +87,7 @@ func (repl *REPL) multiline(ml string) (string, error) {
 }
 
 func main() {
-	repl := NewREPL()
-	repl.Start()
-	repl.Close()
+	r := NewREPL()
+	r.Start()
+	r.Close()
 }

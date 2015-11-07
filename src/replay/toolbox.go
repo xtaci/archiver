@@ -86,6 +86,16 @@ func NewToolBox(dir string) *ToolBox {
 	return t
 }
 
+func (t *ToolBox) Close() {
+	t.L.Close()
+	for _, db := range t.dbs {
+		db.Close()
+	}
+	if t.mgo != nil {
+		t.mgo.Close()
+	}
+}
+
 func (t *ToolBox) register() {
 	mt := t.L.NewTypeMetatable("mt_reclist")
 	t.L.SetGlobal("mt_reclist", mt)
