@@ -61,20 +61,21 @@ func (repl *REPL) loadline() (string, bool) {
 }
 
 func (repl *REPL) multiline(ml string) (string, bool) {
-	repl.rl.SetPrompt(PS2)
 	for {
-		line, err := repl.rl.Readline()
-		if err != nil {
-			return "", false
-		}
-		ml = ml + "\n" + line
-
-		_, err = repl.L.LoadString(ml)
+		// try it
+		_, err := repl.L.LoadString(ml)
 		if err == nil { // syntax ok
 			return ml, true
 		} else if !incomplete(err) { // syntax error
 			return ml, true
 		}
+
+		repl.rl.SetPrompt(PS2)
+		line, err := repl.rl.Readline()
+		if err != nil {
+			return "", false
+		}
+		ml = ml + "\n" + line
 	}
 }
 
