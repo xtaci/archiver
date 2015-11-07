@@ -6,7 +6,7 @@
 
 ## 使用
 创建好镜像后:                 
-> $ docker create -v /data --name redologs /bin/true        
+> $ docker create -v /data --name redologs archiver /bin/true        
 > $ docker run --volumes-from redologs  --name archiver -d archiver /go/bin/archiver              
 > $ docker run --rm --name replay --volumes-from redologs  -it archiver /go/bin/replay             
 
