@@ -52,8 +52,7 @@ func (repl *REPL) loadline() (string, bool) {
 		return "", false
 	}
 	// try add return
-	_, err = repl.L.LoadString("return " + line)
-	if err == nil { // syntax ok
+	if _, err = repl.L.LoadString("return " + line); err == nil { // syntax ok
 		return line, true
 	} else { // syntax error
 		return repl.multiline(line)
@@ -63,8 +62,7 @@ func (repl *REPL) loadline() (string, bool) {
 func (repl *REPL) multiline(ml string) (string, bool) {
 	for {
 		// try it
-		_, err := repl.L.LoadString(ml)
-		if err == nil { // syntax ok
+		if _, err := repl.L.LoadString(ml); err == nil { // syntax ok
 			return ml, true
 		} else if !incomplete(err) { // syntax error
 			return ml, true
