@@ -31,12 +31,12 @@ func NewREPL() *REPL {
 	return repl
 }
 
-// read/eval/print/loop
-func (repl *REPL) start() {
-	defer func() {
-		repl.rl.Close()
-	}()
+func (repl *REPL) Close() {
+	repl.rl.Close()
+}
 
+// read/eval/print/loop
+func (repl *REPL) Start() {
 	for {
 		if str, err := repl.loadline(); err == nil {
 			repl.toolbox.exec(str)
@@ -86,5 +86,6 @@ func (repl *REPL) multiline(ml string) (string, error) {
 
 func main() {
 	repl := NewREPL()
-	repl.start()
+	repl.Start()
+	repl.Close()
 }
