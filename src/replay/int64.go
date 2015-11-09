@@ -16,6 +16,7 @@ func (i Int64) register(L *lua.LState) {
 	// methods
 	L.SetField(mt, "__index", L.SetFuncs(L.NewTable(), map[string]lua.LGFunction{
 		"tostring": i.tostring,
+		"tonumber": i.tonumber,
 		"add":      i.add,
 		"sub":      i.sub,
 		"mul":      i.mul,
@@ -123,6 +124,12 @@ func (i Int64) rshift(L *lua.LState) int {
 func (i Int64) tostring(L *lua.LState) int {
 	x := L.CheckUserData(1).Value.(Int64)
 	L.Push(lua.LString(fmt.Sprint(x)))
+	return 1
+}
+
+func (i Int64) tonumber(L *lua.LState) int {
+	x := L.CheckUserData(1).Value.(Int64)
+	L.Push(lua.LNumber(x))
 	return 1
 }
 
