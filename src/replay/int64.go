@@ -28,12 +28,12 @@ func (i Int64) register(L *lua.LState) {
 	})
 
 	L.SetField(mt, "__index", L.SetFuncs(L.NewTable(), map[string]lua.LGFunction{
-		"bxor":   i.xor,
-		"band":   i.and,
-		"bor":    i.or,
-		"bnot":   i.not,
-		"lshift": i.lshift,
-		"rshift": i.rshift,
+		"bxor": i.xor,
+		"band": i.and,
+		"bor":  i.or,
+		"bnot": i.not,
+		"shl":  i.lshift,
+		"shr":  i.rshift,
 	}))
 }
 
