@@ -52,6 +52,9 @@ func (t *ToolBox) builtin_get(L *lua.LState) int {
 			if idx >= 0 && idx < len(v) {
 				elem := v[idx]
 				r := t.read(idx, elem.db_idx, elem.key)
+				if r != nil {
+					r.TS >>= 22 // keep only millisecond part
+				}
 				bin, _ := json.MarshalIndent(r, "", "\t")
 				L.Push(lua.LString(bin))
 				return 1
