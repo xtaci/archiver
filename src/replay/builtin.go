@@ -37,7 +37,9 @@ func (t *ToolBox) builtin_help(L *lua.LState) int {
 	> print(redo:get(1))                        -- print a document
 	> redo:mgo("mongodb://172.17.42.1/mydb")    -- attach to mongodb
 	> redo:replay(1)                            -- replay redolog#1
-	> json=dofile("/go/scripts/json.lua")       -- require scripts.
+	> dofile("/go/scripts/json.lua")            -- require scripts.
+	> tbl = decode(redo:get(1))                 -- convert json to table
+	> print(tbl.TS)                             -- print TS
 	`)
 	return 0
 }
