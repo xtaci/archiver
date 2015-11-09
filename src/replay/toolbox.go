@@ -106,6 +106,8 @@ func (t *ToolBox) register() {
 		"replay": t.builtin_replay,
 	}))
 
+	Int64(0).register(t.L)
+
 	// global variable
 	ud := t.L.NewUserData()
 	ud.Value = t.recs
