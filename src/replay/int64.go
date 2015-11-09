@@ -13,25 +13,26 @@ func (i Int64) register(L *lua.LState) {
 	L.SetGlobal("int64", mt)
 	// static attributes
 	L.SetField(mt, "new", L.NewFunction(i.newInt64))
-	// methods
+	// meta-methods
+	L.SetFuncs(mt, map[string]lua.LGFunction{
+		"__add":      i.add,
+		"__sub":      i.sub,
+		"__mul":      i.mul,
+		"__div":      i.div,
+		"__mod":      i.mod,
+		"__unm":      i.unm,
+		"__eq":       i.eq,
+		"__lt":       i.lt,
+		"__le":       i.le,
+		"__tostring": i.tostring,
+	})
+
 	L.SetField(mt, "__index", L.SetFuncs(L.NewTable(), map[string]lua.LGFunction{
-		"tostring": i.tostring,
-		"tonumber": i.tonumber,
-		"add":      i.add,
-		"sub":      i.sub,
-		"mul":      i.mul,
-		"div":      i.div,
-		"mod":      i.mod,
-		"eq":       i.eq,
-		"lt":       i.lt,
-		"le":       i.le,
-		"gt":       i.gt,
-		"ge":       i.ge,
-		"bxor":     i.xor,
-		"band":     i.and,
-		"bor":      i.or,
-		"lshift":   i.lshift,
-		"rshift":   i.rshift,
+		"bxor":   i.xor,
+		"band":   i.and,
+		"bor":    i.or,
+		"lshift": i.lshift,
+		"rshift": i.rshift,
 	}))
 }
 
@@ -69,6 +70,10 @@ func (i Int64) mod(L *lua.LState) int {
 	return i.binop(L, func(x, y int64) int64 { return x % y })
 }
 
+func (i Int64) unm(L *lua.LState) int {
+	return i.unaryop(L, func(x int64) int64 { return -x })
+}
+
 func (i Int64) eq(L *lua.LState) int {
 	return i.boolop(L, func(x, y int64) bool { return x == y })
 }
@@ -77,16 +82,8 @@ func (i Int64) lt(L *lua.LState) int {
 	return i.boolop(L, func(x, y int64) bool { return x < y })
 }
 
-func (i Int64) gt(L *lua.LState) int {
-	return i.boolop(L, func(x, y int64) bool { return x > y })
-}
-
 func (i Int64) le(L *lua.LState) int {
 	return i.boolop(L, func(x, y int64) bool { return x <= y })
-}
-
-func (i Int64) ge(L *lua.LState) int {
-	return i.boolop(L, func(x, y int64) bool { return x >= y })
 }
 
 func (i Int64) xor(L *lua.LState) int {
@@ -127,12 +124,6 @@ func (i Int64) tostring(L *lua.LState) int {
 	return 1
 }
 
-func (i Int64) tonumber(L *lua.LState) int {
-	x := L.CheckUserData(1).Value.(Int64)
-	L.Push(lua.LNumber(x))
-	return 1
-}
-
 func (i Int64) binop(L *lua.LState, f func(x, y int64) int64) int {
 	a := L.CheckUserData(1).Value.(Int64)
 	b := L.CheckUserData(2).Value.(Int64)
@@ -147,5 +138,14 @@ func (i Int64) boolop(L *lua.LState, f func(x, y int64) bool) int {
 	a := L.CheckUserData(1).Value.(Int64)
 	b := L.CheckUserData(2).Value.(Int64)
 	L.Push(lua.LBool(f(int64(a), int64(b))))
+	return 1
+}
+
+func (i Int64) unaryop(L *lua.LState, f func(x int64) int64) int {
+	a := L.CheckUserData(1).Value.(Int64)
+	ud := L.NewUserData()
+	ud.Value = Int64(f(int64(a)))
+	L.SetMetatable(ud, L.GetTypeMetatable("int64"))
+	L.Push(ud)
 	return 1
 }
