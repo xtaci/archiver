@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/yuin/gopher-lua"
+	"github.com/yuin/gopher-lua/parse"
 	"gopkg.in/readline.v1"
 	"log"
-	"strings"
 )
 
 const (
@@ -50,8 +50,10 @@ func (r *REPL) Start() {
 }
 
 func incomplete(err error) bool {
-	if strings.Index(err.Error(), "EOF") != -1 {
-		return true
+	if lerr, ok := err.(*lua.ApiError); ok {
+		if perr, ok := lerr.Cause.(*parse.Error); ok {
+			return perr.Pos.Line == parse.EOF
+		}
 	}
 	return false
 }
