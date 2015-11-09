@@ -38,15 +38,28 @@ func (i Int64) register(L *lua.LState) {
 }
 
 func (i Int64) newInt64(L *lua.LState) int {
-	x, err := strconv.ParseInt(L.CheckString(1), 0, 64)
-	if err == nil {
+	v := L.CheckAny(1)
+	switch v.(type) {
+	case lua.LString:
+		x, err := strconv.ParseInt(L.CheckString(1), 0, 64)
+		if err == nil {
+			ud := L.NewUserData()
+			ud.Value = Int64(x)
+			L.SetMetatable(ud, L.GetTypeMetatable("int64"))
+			L.Push(ud)
+			return 1
+		} else {
+			L.ArgError(1, err.Error())
+			return 0
+		}
+	case lua.LNumber:
 		ud := L.NewUserData()
-		ud.Value = Int64(x)
+		ud.Value = Int64(L.CheckNumber(1))
 		L.SetMetatable(ud, L.GetTypeMetatable("int64"))
 		L.Push(ud)
 		return 1
-	} else {
-		L.ArgError(1, err.Error())
+	default:
+		L.ArgError(1, "invalid datatype")
 		return 0
 	}
 }
