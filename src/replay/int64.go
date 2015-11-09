@@ -31,6 +31,7 @@ func (i Int64) register(L *lua.LState) {
 		"bxor":   i.xor,
 		"band":   i.and,
 		"bor":    i.or,
+		"bnot":   i.not,
 		"lshift": i.lshift,
 		"rshift": i.rshift,
 	}))
@@ -96,6 +97,15 @@ func (i Int64) and(L *lua.LState) int {
 
 func (i Int64) or(L *lua.LState) int {
 	return i.binop(L, func(x, y int64) int64 { return x | y })
+}
+
+func (i Int64) not(L *lua.LState) int {
+	a := L.CheckUserData(1).Value.(Int64)
+	ud := L.NewUserData()
+	ud.Value = Int64(int64(a) ^ (1<<63 - 1))
+	L.SetMetatable(ud, L.GetTypeMetatable("int64"))
+	L.Push(ud)
+	return 1
 }
 
 func (i Int64) lshift(L *lua.LState) int {
