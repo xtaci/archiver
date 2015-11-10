@@ -15,8 +15,8 @@ func (i Int64) register(L *lua.LState) {
 	L.SetField(mt, "new", L.NewFunction(i.newInt64))
 	// meta-methods
 	L.SetFuncs(mt, map[string]lua.LGFunction{
-		"__add": i.add,
-		//	"__sub":      i.sub,
+		"__add":      i.add,
+		"__sub":      i.sub,
 		"__mul":      i.mul,
 		"__div":      i.div,
 		"__mod":      i.mod,
