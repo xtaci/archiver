@@ -2,14 +2,15 @@ package main
 
 import (
 	"encoding/binary"
-	nsq "github.com/bitly/go-nsq"
-	"github.com/boltdb/bolt"
-	log "github.com/gonet2/libs/nsq-logger"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	nsq "github.com/bitly/go-nsq"
+	"github.com/boltdb/bolt"
 )
 
 const (
@@ -37,7 +38,7 @@ func (arch *Archiver) init() {
 	cfg := nsq.NewConfig()
 	consumer, err := nsq.NewConsumer(TOPIC, CHANNEL, cfg)
 	if err != nil {
-		log.Critical(err)
+		log.Panic(err)
 		os.Exit(-1)
 	}
 
@@ -54,9 +55,9 @@ func (arch *Archiver) init() {
 	}
 
 	// connect to nsqlookupd
-	log.Trace("connect to nsqlookupds ip:", addresses)
+	log.Debug("connect to nsqlookupds ip:", addresses)
 	if err := consumer.ConnectToNSQLookupds(addresses); err != nil {
-		log.Critical(err)
+		log.Error(err)
 		return
 	}
 	log.Info("nsqlookupd connected")
@@ -84,12 +85,12 @@ func (arch *Archiver) archive_task() {
 				for i := 0; i < n; i++ {
 					id, err := b.NextSequence()
 					if err != nil {
-						log.Critical(err)
+						log.Error(err)
 						continue
 					}
 					binary.BigEndian.PutUint64(key, uint64(id))
 					if err = b.Put(key, <-arch.pending); err != nil {
-						log.Critical(err)
+						log.Error(err)
 						continue
 					}
 				}
@@ -113,14 +114,14 @@ func (arch *Archiver) new_redolog() *bolt.DB {
 	log.Info(file)
 	db, err := bolt.Open(file, 0600, nil)
 	if err != nil {
-		log.Critical(err)
+		log.Panic(err)
 		os.Exit(-1)
 	}
 	// create bulket
 	db.Update(func(tx *bolt.Tx) error {
 		_, err := tx.CreateBucket([]byte(BOLTDB_BUCKET))
 		if err != nil {
-			log.Criticalf("create bucket: %s", err)
+			log.Errorf("create bucket: %s", err)
 			return err
 		}
 		return nil
