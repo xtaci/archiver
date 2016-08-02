@@ -1,11 +1,11 @@
-language: go
-go:
-    - tip
-install:
-    - export GOPATH=$GOPATH/src/github.com/gonet2/archiver
-    - cd $GOPATH
-    - go install archiver
-    - go install replay
+sudo: required
+
+services:
+    - docker
+
+before_install:
+    - docker build -t xtaci/archiver .
+
 before_script:
 script:
     - exit 0
